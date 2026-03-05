@@ -23,6 +23,7 @@ Idioma: [English](README.md)
 
 - [Resumo Executivo](#resumo-executivo)
 - [Estrutura de Engenharia](#estrutura-de-engenharia)
+- [Mapa do Repositório](#mapa-do-repositorio)
 - [Portões de Qualidade](#portoes-de-qualidade)
 - [Execução Rápida](#execucao-rapida)
 - [Testes Automatizados](#testes-automatizados)
@@ -61,7 +62,7 @@ Entrega:
 
 Pastas legadas foram isoladas em `legacy/` e continuam suportadas por fallback (`legacy/dados/`, `legacy/dados_processados/`) para manter compatibilidade.
 
-## Mapa do Repositório
+## <a id="mapa-do-repositorio"></a>Mapa do Repositório
 
 - Aplicação: [app/](app) e [app.py](app.py)
 - Lógica central: [src/](src)
