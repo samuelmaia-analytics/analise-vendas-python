@@ -1,0 +1,93 @@
+CUSTOMER_ID,CUSTOMERNAME,COUNTRY,CITY,STATE,POSTALCODE,TERRITORY,PHONE
+1,Land of Toys Inc.,USA,NYC,NY,10022,,2125557818
+2,Reims Collectables,France,Reims,,51100,EMEA,26.47.1555
+3,Lyon Souveniers,France,Paris,,75508,EMEA,+33 1 46 62 7555
+4,Toys4GrownUps.com,USA,Pasadena,CA,90003,,6265557265
+5,Corporate Gift Ideas Co.,USA,San Francisco,CA,,,6505551386
+6,Technics Stores Inc.,USA,Burlingame,CA,94217,,6505556809
+7,Daedalus Designs Imports,France,Lille,,59000,EMEA,20.16.1555
+8,Herkku Gifts,Norway,Bergen,,N 5804,EMEA,+47 2267 3215
+9,Mini Wheels Co.,USA,San Francisco,CA,,,6505555787
+10,Auto Canal Petit,France,Paris,,75016,EMEA,(1) 47.55.6555
+11,"Australian Collectors, Co.",Australia,Melbourne,Victoria,3004,APAC,03 9520 4555
+12,Vitachrome Inc.,USA,NYC,NY,10022,,2125551500
+13,Tekni Collectables Inc.,USA,Newark,NJ,94019,,2015559350
+14,Gift Depot Inc.,USA,Bridgewater,CT,97562,,2035552570
+15,La Rochelle Gifts,France,Nantes,,44000,EMEA,40.67.8555
+16,Marta's Replicas Co.,USA,Cambridge,MA,51247,,6175558555
+17,"Toys of Finland, Co.",Finland,Helsinki,,21240,EMEA,90-224 8555
+18,Baane Mini Imports,Norway,Stavern,,4110,EMEA,07-98 9555
+19,Diecast Classics Inc.,USA,Allentown,PA,70267,,2155551555
+20,Salzburg Collectables,Austria,Salzburg,,5020,EMEA,6562-9555
+21,Souveniers And Things Co.,Australia,Chatswood,NSW,2067,APAC,+61 2 9495 8555
+22,FunGiftIdeas.com,USA,New Bedford,MA,50553,,5085552555
+23,"UK Collectables, Ltd.",UK,Liverpool,,WX1 6LT,EMEA,(171) 555-2282
+24,Euro Shopping Channel,Spain,Madrid,,28034,EMEA,(91) 555 94 44
+25,"Volvo Model Replicas, Co",Sweden,Lule,,S-958 22,EMEA,0921-12 3555
+26,"Corrida Auto Replicas, Ltd",Spain,Madrid,,28023,EMEA,(91) 555 22 82
+27,"Dragon Souveniers, Ltd.",Singapore,Singapore,,79903,Japan,+65 221 7555
+28,Classic Legends Inc.,USA,NYC,NY,10022,,2125558493
+29,"Australian Gift Network, Co",Australia,South Brisbane,Queensland,4101,APAC,61-7-3844-6555
+30,"Classic Gift Ideas, Inc",USA,Philadelphia,PA,71270,,2155554695
+31,"Saveley & Henriot, Co.",France,Lyon,,69004,EMEA,78.32.5555
+32,Canadian Gift Exchange Network,Canada,Vancouver,BC,V3F 2K1,,(604) 555-3392
+33,West Coast Collectables Co.,USA,Burbank,CA,94019,,3105553722
+34,Cambridge Collectables Co.,USA,Cambridge,MA,51247,,6175555555
+35,Super Scale Inc.,USA,New Haven,CT,97823,,2035559545
+36,"Tokyo Collectables, Ltd",Japan,Minato-ku,Tokyo,106-0032,Japan,+81 3 3584 0555
+37,Amica Models & Co.,Italy,Torino,,10100,EMEA,011-4988555
+38,Scandinavian Gift Ideas,Sweden,Boras,,S-844 67,EMEA,0695-34 6555
+39,Auto Assoc. & Cie.,France,Versailles,,78000,EMEA,30.59.8555
+40,Mini Gifts Distributors Ltd.,USA,San Rafael,CA,97562,,4155551450
+41,Online Diecast Creations Co.,USA,Nashua,NH,62005,,6035558647
+42,Collectables For Less Inc.,USA,Brickhaven,MA,58339,,6175558555
+43,"Anna's Decorations, Ltd",Australia,North Sydney,NSW,2060,APAC,02 9936 8555
+44,Quebec Home Shopping Network,Canada,Montreal,Quebec,H1J 1C3,,(514) 555-8054
+45,Osaka Souveniers Co.,Japan,Osaka,Osaka,530-0003,Japan,+81 06 6342 5555
+46,Motor Mint Distributors Inc.,USA,Philadelphia,PA,71270,,2155559857
+47,Atelier graphique,France,Nantes,,44000,EMEA,40.32.2555
+48,Mini Classics,USA,White Plains,NY,24067,,9145554562
+49,Danish Wholesale Imports,Denmark,Kobenhavn,,1734,EMEA,31 12 3555
+50,"Stylish Desk Decors, Co.",UK,London,,WX3 6FW,EMEA,(171) 555-0297
+51,Mini Creations Ltd.,USA,New Bedford,MA,50553,,5085559555
+52,Alpha Cognac,France,Toulouse,,31000,EMEA,61.77.6555
+53,"Double Decker Gift Stores, Ltd",UK,London,,WA1 1DP,EMEA,(171) 555-7555
+54,Enaco Distributors,Spain,Barcelona,,8022,EMEA,(93) 203 4555
+55,"Men 'R' US Retailers, Ltd.",USA,Los Angeles,CA,,,2155554369
+56,Collectable Mini Designs Co.,USA,San Diego,CA,91217,,7605558146
+57,Petit Auto,Belgium,Bruxelles,,B-1180,EMEA,(02) 5554 67
+58,"Royal Canadian Collectables, Ltd.",Canada,Tsawassen,BC,T2F 8M4,,(604) 555-4555
+59,Gifts4AllAges.com,USA,Boston,MA,51003,,6175559555
+60,giftsbymail.co.uk,UK,Cowes,Isle of Wight,PO31 7PJ,EMEA,(198) 555-8888
+61,"Oulu Toy Supplies, Inc.",Finland,Oulu,,90110,EMEA,981-443655
+62,The Sharp Gifts Warehouse,USA,San Jose,CA,94217,,4085553659
+63,"La Corne D'abondance, Co.",France,Paris,,75012,EMEA,(1) 42.34.2555
+64,Mini Auto Werke,Austria,Graz,,8010,EMEA,7675-3555
+65,Diecast Collectables,USA,Boston,MA,51003,,6175552555
+66,Handji Gifts& Co,Singapore,Singapore,,69045,APAC,+65 224 1555
+67,Cruz & Sons Co.,Philippines,Makati City,,1227 MM,Japan,+63 2 555 3587
+68,Marseille Mini Autos,France,Marseille,,13008,EMEA,91.24.4555
+69,"Toms Spezialitten, Ltd",Germany,Koln,,50739,EMEA,0221-5554327
+70,"Vida Sport, Ltd",Switzerland,Gensve,,1203,EMEA,0897-034555
+71,L'ordine Souveniers,Italy,Reggio Emilia,,42100,EMEA,0522-556555
+72,Online Mini Collectables,USA,Brickhaven,MA,58339,,6175557555
+73,"Blauer See Auto, Co.",Germany,Frankfurt,,60528,EMEA,+49 69 66 90 2555
+74,Suominen Souveniers,Finland,Espoo,,FIN-02271,EMEA,+358 9 8045 555
+75,Muscle Machine Inc,USA,NYC,NY,10022,,2125557413
+76,"Clover Collections, Co.",Ireland,Dublin,,2,EMEA,+353 1862 1555
+77,CAF Imports,Spain,Madrid,,28023,EMEA,+34 913 728 555
+78,"AV Stores, Co.",UK,Manchester,,EC2 5NT,EMEA,(171) 555-1555
+79,Heintze Collectables,Denmark,Aaarhus,,8200,EMEA,86 21 3555
+80,Microscale Inc.,USA,NYC,NY,10022,,2125551957
+81,Boards & Toys Co.,USA,Glendale,CA,92561,,3105552373
+82,"Iberia Gift Imports, Corp.",Spain,Sevilla,,41101,EMEA,(95) 555 82 82
+83,Signal Collectibles Ltd.,USA,Brisbane,CA,94217,,4155554312
+84,Mini Caravy,France,Strasbourg,,67000,EMEA,88.60.1555
+85,Signal Gift Stores,USA,Las Vegas,NV,83030,,7025551838
+86,"Norway Gifts By Mail, Co.",Norway,Oslo,,N 0106,EMEA,+47 2212 1555
+87,Rovelli Gifts,Italy,Bergamo,,24100,EMEA,035-640555
+88,"Australian Collectables, Ltd",Australia,Glen Waverly,Victoria,3150,APAC,61-9-3844-6555
+89,Gift Ideas Corp.,USA,Glendale,CT,97561,,2035554407
+90,"Bavarian Collectables Imports, Co.",Germany,Munich,,80686,EMEA,+49 89 61 08 9555
+91,Royale Belge,Belgium,Charleroi,,B-6000,EMEA,(071) 23 67 2555
+92,Auto-Moto Classics Inc.,USA,Brickhaven,MA,58339,,6175558428

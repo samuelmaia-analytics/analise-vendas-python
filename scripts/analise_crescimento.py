@@ -10,26 +10,42 @@ def encontrar_arquivo_vendas():
     """
     # Padrões de nomes que indicam tabelas de vendas/fatos
     padroes_vendas = [
-        'fato_vendas*.csv',
-        'vendas*.csv',
-        'sales*.csv',
-        'orders*.csv',
-        'pedidos*.csv',
-        '*venda*.csv',
-        '*sales*.csv'
+        "fato_vendas*.csv",
+        "vendas*.csv",
+        "sales*.csv",
+        "orders*.csv",
+        "pedidos*.csv",
+        "*venda*.csv",
+        "*sales*.csv",
     ]
 
-    # Primeiro, procurar na pasta dados_processados
+    # Primeiro, procurar na pasta data/processed
     for padrao in padroes_vendas:
-        caminho_completo = os.path.join('dados_processados', padrao)
+        caminho_completo = os.path.join("data", "processed", padrao)
         arquivos = glob.glob(caminho_completo)
         if arquivos:
             print(f"📁 Arquivo de vendas encontrado: {arquivos[0]}")
             return arquivos[0]
 
-    # Se não encontrar, procurar na pasta dados
+    # Fallback: legacy/dados_processados
     for padrao in padroes_vendas:
-        caminho_completo = os.path.join('dados', padrao)
+        caminho_completo = os.path.join("legacy", "dados_processados", padrao)
+        arquivos = glob.glob(caminho_completo)
+        if arquivos:
+            print(f"📁 Arquivo de vendas encontrado: {arquivos[0]}")
+            return arquivos[0]
+
+    # Se não encontrar, procurar na pasta data/raw
+    for padrao in padroes_vendas:
+        caminho_completo = os.path.join("data", "raw", padrao)
+        arquivos = glob.glob(caminho_completo)
+        if arquivos:
+            print(f"📁 Arquivo de vendas encontrado: {arquivos[0]}")
+            return arquivos[0]
+
+    # Fallback: legacy/dados
+    for padrao in padroes_vendas:
+        caminho_completo = os.path.join("legacy", "dados", padrao)
         arquivos = glob.glob(caminho_completo)
         if arquivos:
             print(f"📁 Arquivo de vendas encontrado: {arquivos[0]}")
@@ -38,7 +54,7 @@ def encontrar_arquivo_vendas():
     return None
 
 
-def calcular_crescimento(dados, coluna_data=None, coluna_valor=None, periodo='M'):
+def calcular_crescimento(dados, coluna_data=None, coluna_valor=None, periodo="M"):
     """
     Calcula o crescimento percentual das vendas entre períodos consecutivos.
     Suporta Pandas versão 2.0+ com nova sintaxe de frequências.
@@ -46,13 +62,18 @@ def calcular_crescimento(dados, coluna_data=None, coluna_valor=None, periodo='M'
     # Se as colunas não foram especificadas, tentar identificar automaticamente
     if coluna_data is None:
         # Procurar colunas de data - especificamente DATE_ID no seu caso
-        colunas_data = [col for col in dados.columns if any(
-            termo in col.lower() for termo in ['date', 'data', 'id']  # Incluindo 'id' para DATE_ID
-        )]
+        colunas_data = [
+            col
+            for col in dados.columns
+            if any(
+                termo in col.lower()
+                for termo in ["date", "data", "id"]  # Incluindo 'id' para DATE_ID
+            )
+        ]
 
         # Priorizar colunas que parecem ser de data
         for col in colunas_data:
-            if 'date' in col.lower() or 'data' in col.lower():
+            if "date" in col.lower() or "data" in col.lower():
                 coluna_data = col
                 break
 
@@ -66,16 +87,31 @@ def calcular_crescimento(dados, coluna_data=None, coluna_valor=None, periodo='M'
 
     if coluna_valor is None:
         # Procurar colunas de valor - especificamente SALES no seu caso
-        colunas_valor = [col for col in dados.columns if any(
-            termo in col.lower() for termo in ['sales', 'venda', 'price', 'preço', 'total', 'amount', 'valor']
-        )]
+        colunas_valor = [
+            col
+            for col in dados.columns
+            if any(
+                termo in col.lower()
+                for termo in [
+                    "sales",
+                    "venda",
+                    "price",
+                    "preço",
+                    "total",
+                    "amount",
+                    "valor",
+                ]
+            )
+        ]
 
         if colunas_valor:
             coluna_valor = colunas_valor[0]
             print(f"💰 Coluna de valor identificada: {coluna_valor}")
         else:
             # Se não encontrar, pode ser uma coluna numérica
-            colunas_numericas = dados.select_dtypes(include=['float64', 'int64']).columns
+            colunas_numericas = dados.select_dtypes(
+                include=["float64", "int64"]
+            ).columns
             if len(colunas_numericas) > 0:
                 coluna_valor = colunas_numericas[0]
                 print(f"💰 Usando coluna numérica: {coluna_valor}")
@@ -83,73 +119,97 @@ def calcular_crescimento(dados, coluna_data=None, coluna_valor=None, periodo='M'
                 raise ValueError("Não foi possível identificar uma coluna de valor")
 
     # Converter data - para seu caso específico, DATE_ID parece ser numérico
-    print(f"\n🔄 Processando dados...")
+    print("\n🔄 Processando dados...")
 
     # Verificar o tipo da coluna de data
-    if dados[coluna_data].dtype in ['int64', 'float64']:
+    if dados[coluna_data].dtype in ["int64", "float64"]:
         # Se for numérico, pode ser um ID - precisamos de uma data real
-        print(f"⚠️ A coluna {coluna_data} é numérica. Precisamos de uma coluna de data real.")
+        print(
+            f"⚠️ A coluna {coluna_data} é numérica. Precisamos de uma coluna de data real."
+        )
         print("📋 Colunas disponíveis para data:")
-        colunas_reais = [col for col in dados.columns if 'date' in col.lower() or 'data' in col.lower()]
+        colunas_reais = [
+            col
+            for col in dados.columns
+            if "date" in col.lower() or "data" in col.lower()
+        ]
         if colunas_reais:
             coluna_data = colunas_reais[0]
             print(f"✅ Usando coluna: {coluna_data}")
         else:
             # Se não houver coluna de data, criar uma sequência de datas baseada no índice
             print("⚠️ Nenhuma coluna de data encontrada. Criando datas sequenciais...")
-            dados['DATA_ANALISE'] = pd.date_range(start='2003-01-01', periods=len(dados), freq='D')
-            coluna_data = 'DATA_ANALISE'
+            dados["DATA_ANALISE"] = pd.date_range(
+                start="2003-01-01", periods=len(dados), freq="D"
+            )
+            coluna_data = "DATA_ANALISE"
 
     # Garantir que a coluna de data seja datetime
-    dados[coluna_data] = pd.to_datetime(dados[coluna_data], errors='coerce')
+    dados[coluna_data] = pd.to_datetime(dados[coluna_data], errors="coerce")
 
     # Remover linhas com data inválida
     dados_limpos = dados.dropna(subset=[coluna_data])
     if len(dados_limpos) < len(dados):
-        print(f"⚠️ {len(dados) - len(dados_limpos)} linhas com data inválida foram removidas")
+        print(
+            f"⚠️ {len(dados) - len(dados_limpos)} linhas com data inválida foram removidas"
+        )
 
     # Mapeamento de períodos para nova sintaxe do Pandas (versão 2.0+)
     freq_map = {
-        'M': 'ME',  # Month End (antes era 'M')
-        'MS': 'MS',  # Month Start (mantém)
-        'T': 'QE',  # Quarter End (antes era 'Q')
-        'QS': 'QS',  # Quarter Start (mantém)
-        'A': 'YE',  # Year End (antes era 'A')
-        'AS': 'YS'  # Year Start (antes era 'AS')
+        "M": "ME",  # Month End (antes era 'M')
+        "MS": "MS",  # Month Start (mantém)
+        "T": "QE",  # Quarter End (antes era 'Q')
+        "QS": "QS",  # Quarter Start (mantém)
+        "A": "YE",  # Year End (antes era 'A')
+        "AS": "YS",  # Year Start (antes era 'AS')
     }
 
     # Agrupar por período com a nova sintaxe
-    if periodo.upper() == 'M':
-        freq = freq_map['M']
-        vendas_periodo = dados_limpos.resample(freq, on=coluna_data)[coluna_valor].sum().reset_index()
-        vendas_periodo.columns = [coluna_data, 'total_vendas']
-        periodo_nome = 'Mensal'
-    elif periodo.upper() == 'T':
-        freq = freq_map['T']
-        vendas_periodo = dados_limpos.resample(freq, on=coluna_data)[coluna_valor].sum().reset_index()
-        vendas_periodo.columns = [coluna_data, 'total_vendas']
-        periodo_nome = 'Trimestral'
-    elif periodo.upper() == 'A':
-        freq = freq_map['A']
-        vendas_periodo = dados_limpos.resample(freq, on=coluna_data)[coluna_valor].sum().reset_index()
-        vendas_periodo.columns = [coluna_data, 'total_vendas']
-        periodo_nome = 'Anual'
+    if periodo.upper() == "M":
+        freq = freq_map["M"]
+        vendas_periodo = (
+            dados_limpos.resample(freq, on=coluna_data)[coluna_valor]
+            .sum()
+            .reset_index()
+        )
+        vendas_periodo.columns = [coluna_data, "total_vendas"]
+        periodo_nome = "Mensal"
+    elif periodo.upper() == "T":
+        freq = freq_map["T"]
+        vendas_periodo = (
+            dados_limpos.resample(freq, on=coluna_data)[coluna_valor]
+            .sum()
+            .reset_index()
+        )
+        vendas_periodo.columns = [coluna_data, "total_vendas"]
+        periodo_nome = "Trimestral"
+    elif periodo.upper() == "A":
+        freq = freq_map["A"]
+        vendas_periodo = (
+            dados_limpos.resample(freq, on=coluna_data)[coluna_valor]
+            .sum()
+            .reset_index()
+        )
+        vendas_periodo.columns = [coluna_data, "total_vendas"]
+        periodo_nome = "Anual"
     else:
-        raise ValueError("Período deve ser 'M' (mensal), 'T' (trimestral) ou 'A' (anual)")
+        raise ValueError(
+            "Período deve ser 'M' (mensal), 'T' (trimestral) ou 'A' (anual)"
+        )
 
     # Calcular crescimento
-    vendas_periodo['crescimento_%'] = vendas_periodo['total_vendas'].pct_change() * 100
-    vendas_periodo['crescimento_%'] = vendas_periodo['crescimento_%'].round(2)
+    vendas_periodo["crescimento_%"] = vendas_periodo["total_vendas"].pct_change() * 100
+    vendas_periodo["crescimento_%"] = vendas_periodo["crescimento_%"].round(2)
 
     # Formatar data para exibição
-    vendas_periodo[coluna_data] = vendas_periodo[coluna_data].dt.strftime('%Y-%m-%d')
+    vendas_periodo[coluna_data] = vendas_periodo[coluna_data].dt.strftime("%Y-%m-%d")
 
     print(f"\n📊 Análise de Crescimento {periodo_nome}")
     print("-" * 60)
     print(vendas_periodo.to_string(index=False))
 
     # Estatísticas (ignorando NaN do primeiro período)
-    crescimento_valido = vendas_periodo['crescimento_%'].dropna()
+    crescimento_valido = vendas_periodo["crescimento_%"].dropna()
     if len(crescimento_valido) > 0:
         crescimento_medio = crescimento_valido.mean()
         crescimento_min = crescimento_valido.min()
@@ -182,15 +242,15 @@ def analisar_estrutura_dados(df):
     # Verificar colunas de data potenciais
     print("\n📅 Possíveis colunas de data:")
     for col in df.columns:
-        if any(termo in col.lower() for termo in ['date', 'data', 'id']):
+        if any(termo in col.lower() for termo in ["date", "data", "id"]):
             amostra = df[col].iloc[0] if len(df) > 0 else "N/A"
             print(f"   • {col} (ex: {amostra})")
 
     # Verificar colunas de valor potenciais
     print("\n💰 Possíveis colunas de valor:")
     for col in df.columns:
-        if any(termo in col.lower() for termo in ['sales', 'price', 'total', 'quant']):
-            if df[col].dtype in ['float64', 'int64']:
+        if any(termo in col.lower() for termo in ["sales", "price", "total", "quant"]):
+            if df[col].dtype in ["float64", "int64"]:
                 amostra = df[col].iloc[0] if len(df) > 0 else "N/A"
                 print(f"   • {col} (ex: {amostra})")
 
@@ -204,8 +264,10 @@ def main():
     if not caminho_vendas:
         print("\n❌ Não foi possível encontrar dados de vendas.")
         print("Por favor, verifique se existe um arquivo de vendas nas pastas:")
-        print("  - dados_processados/")
-        print("  - dados/")
+        print("  - data/processed/")
+        print("  - data/raw/")
+        print("  - legacy/dados_processados/ (legado)")
+        print("  - legacy/dados/ (legado)")
         return
 
     print(f"📥 Carregando dados de: {caminho_vendas}")
@@ -224,33 +286,39 @@ def main():
 
     opcao = input("\nEscolha uma opção (1-5): ").strip()
 
-    if opcao == '5':
+    if opcao == "5":
         print("\n📝 Configuração customizada:")
         print(f"Colunas disponíveis: {list(df.columns)}")
         col_data = input("Nome da coluna de data: ").strip()
         col_valor = input("Nome da coluna de valor: ").strip()
 
         print("\n" + "=" * 60)
-        calcular_crescimento(df, coluna_data=col_data, coluna_valor=col_valor, periodo='M')
+        calcular_crescimento(
+            df, coluna_data=col_data, coluna_valor=col_valor, periodo="M"
+        )
         print("\n" + "=" * 60)
-        calcular_crescimento(df, coluna_data=col_data, coluna_valor=col_valor, periodo='T')
+        calcular_crescimento(
+            df, coluna_data=col_data, coluna_valor=col_valor, periodo="T"
+        )
         print("\n" + "=" * 60)
-        calcular_crescimento(df, coluna_data=col_data, coluna_valor=col_valor, periodo='A')
-    elif opcao == '4':
-        calcular_crescimento(df, periodo='M')
+        calcular_crescimento(
+            df, coluna_data=col_data, coluna_valor=col_valor, periodo="A"
+        )
+    elif opcao == "4":
+        calcular_crescimento(df, periodo="M")
         print("\n" + "=" * 60)
-        calcular_crescimento(df, periodo='T')
+        calcular_crescimento(df, periodo="T")
         print("\n" + "=" * 60)
-        calcular_crescimento(df, periodo='A')
-    elif opcao == '1':
-        calcular_crescimento(df, periodo='M')
-    elif opcao == '2':
-        calcular_crescimento(df, periodo='T')
-    elif opcao == '3':
-        calcular_crescimento(df, periodo='A')
+        calcular_crescimento(df, periodo="A")
+    elif opcao == "1":
+        calcular_crescimento(df, periodo="M")
+    elif opcao == "2":
+        calcular_crescimento(df, periodo="T")
+    elif opcao == "3":
+        calcular_crescimento(df, periodo="A")
     else:
         print("Opção inválida. Executando análise mensal...")
-        calcular_crescimento(df, periodo='M')
+        calcular_crescimento(df, periodo="M")
 
 
 if __name__ == "__main__":

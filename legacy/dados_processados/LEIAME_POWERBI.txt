@@ -1,0 +1,63 @@
+
+# 📊 DOCUMENTAÇÃO PARA POWER BI
+
+## 📁 ARQUIVOS DISPONÍVEIS em C:\Users\samue\PycharmProjects\analise-vendas-python\dados_processados
+
+### 1. PARA INICIANTES (Recomendado):
+**vendas_simples.csv** - 2,823 transações
+- Um único arquivo
+- Fácil de importar
+- Não precisa de relacionamentos
+
+### 2. PARA AVANÇADOS:
+**Modelo Estrela (4 arquivos):**
+- fato_vendas.csv - Transações
+- dim_produtos.csv - 109 produtos
+- dim_clientes.csv - 92 clientes
+- dim_tempo.csv - 252 datas
+
+### 3. EXCEL COMPLETO:
+**modelo_completo.xlsx** - Todas as tabelas em um arquivo Excel
+
+## 🚀 COMO IMPORTAR:
+
+### Opção A: Arquivo único (FÁCIL)
+1. Power BI → "Obter Dados" → "Texto/CSV"
+2. Selecione: vendas_simples.csv
+3. Clique em "Carregar"
+
+### Opção B: Modelo estrela
+1. Importe os 4 arquivos CSV separadamente
+2. Vá para "Modelo" (ícone 🔗)
+3. Crie relacionamentos:
+   - fato_vendas[PRODUCT_ID] → dim_produtos[PRODUCT_ID]
+   - fato_vendas[CUSTOMER_ID] → dim_clientes[CUSTOMER_ID]
+   - fato_vendas[DATE_ID] → dim_tempo[DATE_ID]
+
+## ✅ DADOS VALIDADOS:
+- Total de vendas: $10,032,628.85
+- Ticket médio: $3,553.89
+- Transações: 2,823
+- Período: 06/01/2003 a 31/05/2005
+
+## 🎯 TESTE RÁPIDO:
+1. Importe "vendas_simples.csv"
+2. Crie uma tabela com:
+   - PRODUCTLINE
+   - SALES (Soma)
+3. Deve mostrar: $10,032,628.85
+
+## 🆘 SOLUÇÃO DE PROBLEMAS:
+
+### Se valores estiverem errados:
+1. No Power Query, verifique tipos de dados:
+   - SALES deve ser "Número Decimal"
+   - ORDERDATE deve ser "Data"
+   - IDs devem ser "Número Inteiro"
+
+### Se relacionamentos não funcionarem:
+1. Delete todos relacionamentos
+2. Crie novamente UM POR UM
+3. Teste após cada um
+
+Gerado em: 25/01/2026 15:15:08

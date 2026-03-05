@@ -1,0 +1,37 @@
+version: "3"
+
+tasks:
+  setup:
+    desc: Install dependencies and local hooks
+    cmds:
+      - pip install -r requirements.txt -r requirements-dev.txt
+      - pre-commit install
+
+  lint:
+    desc: Run lint
+    cmds:
+      - ruff check .
+
+  type:
+    desc: Run type checking
+    cmds:
+      - mypy src
+
+  linkcheck:
+    desc: Validate local markdown links
+    cmds:
+      - python scripts/check_markdown_links.py
+
+  test:
+    desc: Run tests with coverage gate
+    cmds:
+      - pytest
+
+  quality:
+    desc: Full local quality gate
+    deps: [lint, type, linkcheck, test]
+
+  run:
+    desc: Run Streamlit app
+    cmds:
+      - streamlit run app.py
