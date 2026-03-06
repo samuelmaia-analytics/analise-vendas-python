@@ -1,4 +1,5 @@
-﻿import os
+import os
+import csv as csvlib
 from contextlib import redirect_stdout
 from datetime import datetime
 from io import BytesIO
@@ -150,32 +151,57 @@ def carregar_dados() -> tuple[pd.DataFrame, bool, str | None]:
 
 
 def carregar_csv_upload(file_bytes: bytes) -> pd.DataFrame:
-    # Tenta encodings e delimitadores comuns para evitar erro/trava em uploads heterogeneos.
+    # Detecta encoding/separador em amostra para evitar multiplos parses pesados.
     encodings = ["utf-8-sig", "utf-8", "ISO-8859-1", "cp1252"]
-    separators = [None, ",", ";", "\t", "|"]
+    separators = [",", ";", "\t", "|"]
+    sample = file_bytes[:200_000]
     last_error: Exception | None = None
 
     for enc in encodings:
+        try:
+            sample_text = sample.decode(enc)
+        except UnicodeDecodeError:
+            continue
+
+        try:
+            sep = csvlib.Sniffer().sniff(
+                sample_text, delimiters="".join(separators)
+            ).delimiter
+        except csvlib.Error:
+            sep = max(separators, key=sample_text.count)
+            if sample_text.count(sep) == 0:
+                sep = ","
+
+        try:
+            parsed = pd.read_csv(
+                BytesIO(file_bytes),
+                encoding=enc,
+                sep=sep,
+                low_memory=False,
+                on_bad_lines="skip",
+            )
+            if parsed.shape[1] >= 2:
+                return parsed
+        except Exception as exc:  # noqa: PERF203
+            last_error = exc
+
+    # Fallback para casos em que o sniffer falha.
+    for enc in encodings:
         for sep in separators:
             try:
-                kwargs = {
-                    "encoding": enc,
-                    "low_memory": False,
-                }
-                if sep is None:
-                    kwargs["sep"] = None
-                    kwargs["engine"] = "python"
-                else:
-                    kwargs["sep"] = sep
-
-                parsed = pd.read_csv(BytesIO(file_bytes), **kwargs)
+                parsed = pd.read_csv(
+                    BytesIO(file_bytes),
+                    encoding=enc,
+                    sep=sep,
+                    low_memory=False,
+                    on_bad_lines="skip",
+                )
                 if parsed.shape[1] >= 2:
                     return parsed
             except Exception as exc:  # noqa: PERF203
                 last_error = exc
 
     raise ValueError(f"Nao foi possivel ler o CSV enviado. Erro: {last_error}")
-
 
 def compute_yoy(
     df: pd.DataFrame, date_col: str, value_col: str, freq: str = "ME"
@@ -1057,10 +1083,10 @@ try:
         )
         st.dataframe(stats_df, hide_index=True, use_container_width=True)
 
-        csv = resultado.to_csv(index=False)
+        csv_data = resultado.to_csv(index=False)
         st.download_button(
             label="Download CSV (crescimento)",
-            data=csv,
+            data=csv_data,
             file_name=f"analise_crescimento_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
         )
@@ -1078,4 +1104,5 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
 
