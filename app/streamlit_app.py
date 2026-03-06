@@ -14,7 +14,7 @@ import streamlit as st
 from scripts.analise_crescimento import calcular_crescimento
 
 APP_TITLE = "Revenue Intelligence - Samuel Maia"
-APP_ICON = "📊"
+APP_ICON = ":bar_chart:"
 LAYOUT = "wide"
 
 COLOR_REVENUE = "#0b3c5d"
@@ -894,7 +894,7 @@ try:
                 font=dict(family=PLOT_FONT),
                 margin=dict(l=10, r=10, t=45, b=10),
             )
-            st.plotly_chart(fig_vendas, use_container_width=True)
+            st.plotly_chart(fig_vendas, width="stretch")
 
         with c_right:
             fig_cresc = px.bar(
@@ -913,7 +913,7 @@ try:
                 font=dict(family=PLOT_FONT),
                 margin=dict(l=10, r=10, t=45, b=10),
             )
-            st.plotly_chart(fig_cresc, use_container_width=True)
+            st.plotly_chart(fig_cresc, width="stretch")
 
     with tab_growth:
         st.caption("Performance ao longo dos periodos com destaque para variacao recente.")
@@ -959,14 +959,14 @@ try:
             font=dict(family=PLOT_FONT),
             margin=dict(l=10, r=10, t=20, b=10),
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width="stretch")
 
     with tab_pareto:
         st.caption("Concentracao de receita para identificar dependencias e oportunidades de diversificacao.")
         if dim_concentracao and dim_concentracao in df_analise.columns:
             pareto_df = compute_pareto(df_analise, dim_concentracao, coluna_valor)
             fig_pareto = build_pareto_chart(pareto_df, dim_concentracao, top_n=top_n_pareto)
-            st.plotly_chart(fig_pareto, use_container_width=True)
+            st.plotly_chart(fig_pareto, width="stretch")
 
             if top3_labels:
                 st.caption(f"Top 3 em {dim_concentracao}: {top3_labels}")
@@ -977,7 +977,7 @@ try:
             show_df["cum_share_pct"] = show_df["cum_share_pct"].map(lambda x: f"{x:.2f}%")
             st.dataframe(
                 show_df[[dim_concentracao, "total", "share_pct", "cum_share_pct"]],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
         else:
@@ -1032,7 +1032,7 @@ try:
             font=dict(family=PLOT_FONT),
             margin=dict(l=30, r=30, t=30, b=30),
         )
-        st.plotly_chart(fig_yoy, use_container_width=True)
+        st.plotly_chart(fig_yoy, width="stretch")
 
         yoy_view = yoy_df.rename(columns={yoy_df.columns[0]: "Periodo"}) if not yoy_df.empty else yoy_df
         if not yoy_view.empty:
@@ -1043,7 +1043,7 @@ try:
                     "yoy_pct": lambda x: f"{x:.2f}%" if pd.notna(x) else "-",
                 }
             ).background_gradient(subset=["yoy_pct"], cmap="RdYlGn")
-            st.dataframe(yoy_styler, use_container_width=True, hide_index=True)
+            st.dataframe(yoy_styler, width="stretch", hide_index=True)
         else:
             st.info("Ainda nao ha historico suficiente para tabela YoY.")
 
@@ -1064,7 +1064,7 @@ try:
             }
         ).background_gradient(subset=["Crescimento"], cmap="RdYlGn")
 
-        st.dataframe(tabela_styler, use_container_width=True, hide_index=True)
+        st.dataframe(tabela_styler, width="stretch", hide_index=True)
 
         stats = resultado["crescimento_%"].describe()
         stats_df = pd.DataFrame(
@@ -1081,7 +1081,7 @@ try:
                 ],
             }
         )
-        st.dataframe(stats_df, hide_index=True, use_container_width=True)
+        st.dataframe(stats_df, hide_index=True, width="stretch")
 
         csv_data = resultado.to_csv(index=False)
         st.download_button(
@@ -1104,5 +1104,6 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
 
 
