@@ -18,7 +18,7 @@ COLOR_GROWTH = "#c2410c"
 COLOR_PARETO_BAR = "#0f766e"
 COLOR_PARETO_LINE = "#b45309"
 COLOR_YOY = "#1d4ed8"
-PLOT_FONT = "Manrope, Segoe UI, Arial, sans-serif"
+PLOT_FONT = "Segoe UI, Segoe UI Variable, Helvetica Neue, Arial, sans-serif"
 
 
 def format_currency(value: float, symbol: str = "$") -> str:
@@ -247,7 +247,6 @@ def inject_css() -> None:
     st.markdown(
         """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
     :root {
         --ink-900: #0f172a;
         --ink-700: #334155;
@@ -262,7 +261,8 @@ def inject_css() -> None:
             radial-gradient(circle at 2% 2%, #e0f2fe 0, transparent 36%),
             radial-gradient(circle at 94% 7%, #ffedd5 0, transparent 35%),
             #f1f5f9;
-        font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+        font-family: "Segoe UI", "Segoe UI Variable", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink-900);
     }
     .block-container {
         padding-top: 1rem;
@@ -282,7 +282,7 @@ def inject_css() -> None:
         font-size: 2.05rem;
         line-height: 1.2;
         font-weight: 760;
-        font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
+        font-family: "Segoe UI", "Segoe UI Variable", "Helvetica Neue", Arial, sans-serif;
         letter-spacing: -0.02em;
     }
     .hero-subtitle {
