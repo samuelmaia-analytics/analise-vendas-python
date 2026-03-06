@@ -1,35 +1,27 @@
-# app.py
-import os
+﻿import os
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 
 from scripts.analise_crescimento import calcular_crescimento
 
-
-# =========================
-# CONFIGURAÇÕES GERAIS
-# =========================
-APP_TITLE = "Análise de Vendas - Samuel Maia"
-APP_ICON = "📈"
+APP_TITLE = "Revenue Intelligence - Samuel Maia"
+APP_ICON = "📊"
 LAYOUT = "wide"
-COLOR_REVENUE = "#1d4ed8"
-COLOR_GROWTH = "#ea580c"
-COLOR_PARETO_BAR = "#0284c7"
-COLOR_PARETO_LINE = "#d97706"
-COLOR_YOY = "#7c3aed"
-PLOT_FONT = "Trebuchet MS, Segoe UI, sans-serif"
+
+COLOR_REVENUE = "#0b3c5d"
+COLOR_GROWTH = "#c2410c"
+COLOR_PARETO_BAR = "#0f766e"
+COLOR_PARETO_LINE = "#b45309"
+COLOR_YOY = "#1d4ed8"
+PLOT_FONT = "Manrope, Segoe UI, Arial, sans-serif"
 
 
-# =========================
-# FUNÇÕES UTILITÁRIAS
-# =========================
 def format_currency(value: float, symbol: str = "$") -> str:
-    """Formata moeda em padrão internacional simples."""
     try:
         return f"{symbol}{value:,.2f}"
     except Exception:
@@ -37,12 +29,10 @@ def format_currency(value: float, symbol: str = "$") -> str:
 
 
 def safe_to_datetime(series: pd.Series) -> pd.Series:
-    """Converte para datetime com coerção segura."""
     return pd.to_datetime(series, errors="coerce")
 
 
 def safe_to_numeric(series: pd.Series) -> pd.Series:
-    """Converte para numérico com coerção segura."""
     return pd.to_numeric(series, errors="coerce")
 
 
@@ -65,7 +55,6 @@ def month_name_pt(month_num: int) -> str:
 
 
 def detect_date_columns(columns: list[str]) -> list[str]:
-    """Sugere colunas de data."""
     return [
         c
         for c in columns
@@ -74,7 +63,6 @@ def detect_date_columns(columns: list[str]) -> list[str]:
 
 
 def detect_value_columns(df: pd.DataFrame) -> list[str]:
-    """Sugere colunas numéricas de valor (vendas/receita)."""
     cols = df.columns.tolist()
     by_name = [
         c
@@ -85,13 +73,10 @@ def detect_value_columns(df: pd.DataFrame) -> list[str]:
         )
     ]
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    # Prioriza sugestão por nome e depois numéricas
-    merged = list(dict.fromkeys(by_name + numeric_cols))
-    return merged
+    return list(dict.fromkeys(by_name + numeric_cols))
 
 
 def suggest_dimension_columns(df: pd.DataFrame) -> list[str]:
-    """Sugere colunas categóricas para Pareto / Top 3 concentração."""
     cols = df.columns.tolist()
     hints = []
     for c in [
@@ -111,13 +96,11 @@ def suggest_dimension_columns(df: pd.DataFrame) -> list[str]:
             hints.append(c)
 
     cat_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
-    merged = list(dict.fromkeys(hints + cat_cols))
-    return merged
+    return list(dict.fromkeys(hints + cat_cols))
 
 
 @st.cache_data
-def criar_dados_exemplo():
-    """Cria dados de exemplo realistas para fallback."""
+def criar_dados_exemplo() -> pd.DataFrame:
     np.random.seed(42)
 
     datas = pd.date_range("2023-01-01", "2024-12-31", freq="D")
@@ -130,7 +113,7 @@ def criar_dados_exemplo():
     produtos = [f"PROD_{i:03d}" for i in range(1, 21)]
     clientes = [f"CLI_{i:03d}" for i in range(1, 51)]
 
-    df = pd.DataFrame(
+    return pd.DataFrame(
         {
             "DATA": datas,
             "VENDAS": vendas.astype(int),
@@ -138,16 +121,14 @@ def criar_dados_exemplo():
             "PRODUTO": np.random.choice(produtos, len(datas)),
             "CLIENTE": np.random.choice(clientes, len(datas)),
             "CATEGORIA": np.random.choice(
-                ["Eletrônicos", "Móveis", "Roupas", "Livros"], len(datas)
+                ["Eletronicos", "Moveis", "Roupas", "Livros"], len(datas)
             ),
         }
     )
-    return df
 
 
 @st.cache_data
-def carregar_dados():
-    """Carrega dados locais se existirem; caso contrário, usa dados de exemplo."""
+def carregar_dados() -> tuple[pd.DataFrame, bool, str | None]:
     possiveis_caminhos = [
         "data/processed/fato_vendas.csv",
         "legacy/dados_processados/fato_vendas.csv",
@@ -160,8 +141,7 @@ def carregar_dados():
     ]
     for caminho in possiveis_caminhos:
         if os.path.exists(caminho):
-            df = pd.read_csv(caminho)
-            return df, True, caminho
+            return pd.read_csv(caminho), True, caminho
 
     return criar_dados_exemplo(), False, None
 
@@ -169,16 +149,11 @@ def carregar_dados():
 def compute_yoy(
     df: pd.DataFrame, date_col: str, value_col: str, freq: str = "ME"
 ) -> pd.DataFrame:
-    """
-    Calcula YoY (Year-over-Year) com agregação mensal por padrão.
-    Retorna dataframe com colunas: periodo, total, yoy_abs, yoy_pct.
-    """
     tmp = df[[date_col, value_col]].copy()
     tmp[date_col] = safe_to_datetime(tmp[date_col])
     tmp[value_col] = safe_to_numeric(tmp[value_col])
     tmp = tmp.dropna(subset=[date_col, value_col])
 
-    # Agregação mensal (month-end). (Evita 'M' deprecation)
     agg = (
         tmp.set_index(date_col)
         .resample(freq)[value_col]
@@ -192,7 +167,6 @@ def compute_yoy(
 
 
 def compute_pareto(df: pd.DataFrame, dim_col: str, value_col: str) -> pd.DataFrame:
-    """Calcula Pareto (valor por dimensão + % acumulado)."""
     tmp = df[[dim_col, value_col]].copy()
     tmp[value_col] = safe_to_numeric(tmp[value_col])
     tmp = tmp.dropna(subset=[dim_col, value_col])
@@ -214,12 +188,9 @@ def compute_pareto(df: pd.DataFrame, dim_col: str, value_col: str) -> pd.DataFra
 def build_pareto_chart(
     pareto_df: pd.DataFrame, dim_col: str, top_n: int = 15
 ) -> go.Figure:
-    """Gera gráfico de Pareto (barras + linha de % acumulado)."""
     plot_df = pareto_df.head(top_n).copy()
 
     fig = go.Figure()
-
-    # Barras: total por categoria
     fig.add_trace(
         go.Bar(
             x=plot_df[dim_col].astype(str),
@@ -228,8 +199,6 @@ def build_pareto_chart(
             marker_color=COLOR_PARETO_BAR,
         )
     )
-
-    # Linha: acumulado %
     fig.add_trace(
         go.Scatter(
             x=plot_df[dim_col].astype(str),
@@ -254,6 +223,313 @@ def build_pareto_chart(
     return fig
 
 
+def classify_growth_signal(value: float) -> tuple[str, str]:
+    if pd.isna(value):
+        return "N/A", "signal-warn"
+    if value >= 8:
+        return "Tracao Forte", "signal-good"
+    if value >= 2:
+        return "Tracao Moderada", "signal-warn"
+    return "Tracao Fraca", "signal-risk"
+
+
+def classify_concentration_signal(value: float | None) -> tuple[str, str]:
+    if value is None or pd.isna(value):
+        return "N/A", "signal-warn"
+    if value <= 50:
+        return "Risco Baixo", "signal-good"
+    if value <= 70:
+        return "Risco Moderado", "signal-warn"
+    return "Risco Alto", "signal-risk"
+
+
+def inject_css() -> None:
+    st.markdown(
+        """
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
+    :root {
+        --ink-900: #0f172a;
+        --ink-700: #334155;
+        --surface: #ffffff;
+        --line: #dbe4ef;
+        --brand-1: #0f766e;
+        --brand-2: #0b3c5d;
+        --brand-3: #c2410c;
+    }
+    .stApp {
+        background:
+            radial-gradient(circle at 2% 2%, #e0f2fe 0, transparent 36%),
+            radial-gradient(circle at 94% 7%, #ffedd5 0, transparent 35%),
+            #f1f5f9;
+        font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+    }
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1.8rem;
+        max-width: 1380px;
+    }
+    .hero-wrap {
+        background: linear-gradient(120deg, var(--brand-2) 0%, var(--brand-1) 52%, #0ea5e9 100%);
+        border-radius: 20px;
+        padding: 1.25rem 1.35rem;
+        margin-bottom: 0.85rem;
+        color: #f8fafc;
+        box-shadow: 0 14px 30px rgba(11, 60, 93, 0.24);
+    }
+    .hero-title {
+        margin: 0;
+        font-size: 2.05rem;
+        line-height: 1.2;
+        font-weight: 760;
+        font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
+        letter-spacing: -0.02em;
+    }
+    .hero-subtitle {
+        margin: 0.45rem 0 0 0;
+        font-size: 0.96rem;
+        color: #e2e8f0;
+    }
+    .hero-badges {
+        margin-top: 0.65rem;
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+    .hero-badge {
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        border-radius: 999px;
+        padding: 0.2rem 0.58rem;
+        font-size: 0.74rem;
+        color: #ecfeff;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    [data-testid="stSidebar"] {
+        border-right: 1px solid var(--line);
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    [data-testid="stMetric"] {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.48rem 0.75rem;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    }
+    [data-testid="stMetricLabel"] {
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+    .section-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.78rem 0.94rem;
+        margin-bottom: 0.8rem;
+    }
+    .proof-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.6rem;
+        margin: 0.1rem 0 0.8rem 0;
+    }
+    .proof-card {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.55rem 0.7rem;
+    }
+    .proof-k {
+        font-size: 0.74rem;
+        color: var(--ink-700);
+        margin: 0;
+    }
+    .proof-v {
+        font-size: 1.04rem;
+        margin: 0.1rem 0 0 0;
+        color: var(--ink-900);
+        font-weight: 760;
+    }
+    .snapshot-list {
+        margin: 0;
+        padding-left: 1.1rem;
+        color: var(--ink-900);
+    }
+    .snapshot-list li {
+        margin-bottom: 0.25rem;
+    }
+    .signal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin-top: 0.4rem;
+    }
+    .signal-card {
+        border-radius: 10px;
+        padding: 0.72rem 0.8rem;
+        border: 1px solid transparent;
+    }
+    .signal-title {
+        font-size: 0.78rem;
+        color: var(--ink-700);
+        margin-bottom: 0.2rem;
+    }
+    .signal-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ink-900);
+    }
+    .signal-good { background: #ecfdf5; border-color: #86efac; }
+    .signal-warn { background: #fffbeb; border-color: #fde68a; }
+    .signal-risk { background: #fef2f2; border-color: #fca5a5; }
+    .lead-strip {
+        background: linear-gradient(90deg, #0b3c5d 0%, #0f766e 50%, #c2410c 100%);
+        border-radius: 14px;
+        padding: 0.8rem 0.95rem;
+        margin: 0.85rem 0;
+        color: #f8fafc;
+        display: grid;
+        grid-template-columns: 1.6fr 1fr 1fr;
+        gap: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .lead-title {
+        margin: 0;
+        font-weight: 780;
+        font-size: 1.02rem;
+    }
+    .lead-txt {
+        margin: 0.2rem 0 0 0;
+        font-size: 0.84rem;
+        color: #e2e8f0;
+    }
+    .lead-k {
+        margin: 0;
+        font-size: 0.72rem;
+        color: #dbeafe;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .lead-v {
+        margin: 0.1rem 0 0 0;
+        font-size: 1.08rem;
+        font-weight: 760;
+    }
+    [data-baseweb="tab-list"] {
+        gap: 0.35rem;
+    }
+    [data-baseweb="tab"] {
+        border-radius: 10px;
+        background: #e2e8f0;
+        border: 1px solid #d1d9e6;
+        color: var(--ink-700);
+        font-weight: 650;
+        padding: 0.4rem 0.65rem;
+    }
+    [aria-selected="true"][data-baseweb="tab"] {
+        background: #0b3c5d;
+        border-color: #0b3c5d;
+        color: #f8fafc;
+    }
+    @media (max-width: 980px) {
+        .signal-grid,
+        .proof-grid,
+        .lead-strip {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_header(origem: str | None, dados_reais: bool) -> None:
+    fonte = origem if origem else "Dados simulados"
+    tipo = "Dados reais" if dados_reais else "Amostra de demonstracao"
+    st.markdown(
+        f"""
+<div class='hero-wrap'>
+    <h1 class='hero-title'>Revenue Intelligence Studio</h1>
+    <p class='hero-subtitle'>Painel executivo com narrativa de crescimento, risco comercial e concentracao de receita para tomada de decisao.</p>
+    <p class='hero-subtitle'><strong>Fonte:</strong> {fonte} | <strong>Tipo:</strong> {tipo} | <strong>Atualizado:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+    <div class='hero-badges'>
+        <span class='hero-badge'>Visao C-Level</span>
+        <span class='hero-badge'>Pareto + YoY</span>
+        <span class='hero-badge'>Pronto para Pitch</span>
+    </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_proof_strip(
+    periodos: int,
+    dimensoes: int,
+    top3_share: float | None,
+    crescimento_medio: float,
+) -> None:
+    concentracao = f"{top3_share:.1f}%" if top3_share is not None else "N/A"
+    crescimento = f"{crescimento_medio:.1f}%" if pd.notna(crescimento_medio) else "N/A"
+    st.markdown(
+        f"""
+<div class='proof-grid'>
+    <div class='proof-card'><p class='proof-k'>Escala analisada</p><p class='proof-v'>{periodos} periodos</p></div>
+    <div class='proof-card'><p class='proof-k'>Dimensoes mapeadas</p><p class='proof-v'>{dimensoes}</p></div>
+    <div class='proof-card'><p class='proof-k'>Concentracao Top 3</p><p class='proof-v'>{concentracao}</p></div>
+    <div class='proof-card'><p class='proof-k'>Crescimento medio</p><p class='proof-v'>{crescimento}</p></div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_lead_strip(
+    receita_total: float,
+    crescimento_medio: float,
+    top3_share: float | None,
+    dados_reais: bool,
+) -> None:
+    crescimento = f"{crescimento_medio:.1f}%" if pd.notna(crescimento_medio) else "N/A"
+    concentracao = f"{top3_share:.1f}%" if top3_share is not None else "N/A"
+    origem_label = "Dataset real" if dados_reais else "Dataset demonstrativo"
+    st.markdown(
+        f"""
+<div class='lead-strip'>
+    <div>
+        <p class='lead-title'>Narrativa pronta para recrutadores e leads</p>
+        <p class='lead-txt'>Dashboard orientado a impacto: combina crescimento, risco de concentracao e sazonalidade para guiar decisao executiva.</p>
+    </div>
+    <div>
+        <p class='lead-k'>Receita consolidada</p>
+        <p class='lead-v'>{format_currency(receita_total, '$')}</p>
+        <p class='lead-txt'>{origem_label}</p>
+    </div>
+    <div>
+        <p class='lead-k'>Headline comercial</p>
+        <p class='lead-v'>Growth {crescimento}</p>
+        <p class='lead-txt'>Top 3 share {concentracao}</p>
+    </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def format_period_label(value: object) -> str:
+    try:
+        parsed = pd.to_datetime(value, errors="coerce")
+        if pd.notna(parsed):
+            return parsed.strftime("%Y-%m")
+    except Exception:
+        pass
+    return str(value)
+
+
 def build_executive_insights(
     receita_total: float,
     crescimento_medio: float,
@@ -269,226 +545,86 @@ def build_executive_insights(
 
     if pd.notna(crescimento_medio):
         direcao = "expansao" if crescimento_medio >= 0 else "retracao"
-        insights.append(
-            f"Crescimento medio em {direcao}: {crescimento_medio:.1f}% por periodo."
-        )
+        insights.append(f"Crescimento medio em {direcao}: {crescimento_medio:.1f}% por periodo.")
 
     if top3_share is not None:
-        insights.append(
-            f"Concentracao top 3 em {top3_share:.1f}% da receita: monitorar dependencia comercial."
-        )
+        insights.append(f"Concentracao top 3: {top3_share:.1f}% da receita total.")
 
-    insights.append(
-        f"Faixa de performance: melhor periodo em {melhor_periodo} e pior em {pior_periodo}."
-    )
+    insights.append(f"Faixa de performance: melhor em {melhor_periodo} e pior em {pior_periodo}.")
     return insights
 
 
-def classify_growth_signal(value: float) -> tuple[str, str]:
-    if pd.isna(value):
-        return "N/A", "signal-warn"
-    if value >= 8:
-        return "Tração Forte", "signal-good"
-    if value >= 2:
-        return "Tração Moderada", "signal-warn"
-    return "Tração Fraca", "signal-risk"
-
-
-def classify_concentration_signal(value: float | None) -> tuple[str, str]:
-    if value is None or pd.isna(value):
-        return "N/A", "signal-warn"
-    if value <= 50:
-        return "Risco Baixo", "signal-good"
-    if value <= 70:
-        return "Risco Moderado", "signal-warn"
-    return "Risco Alto", "signal-risk"
-
-
-# =========================
-# CONFIG STREAMLIT
-# =========================
 st.set_page_config(
     page_title=APP_TITLE,
     page_icon=APP_ICON,
     layout=LAYOUT,
     initial_sidebar_state="expanded",
 )
+inject_css()
 
-# CSS
-st.markdown(
-    """
-<style>
-    :root {
-        --brand-ink: #0f172a;
-        --brand-muted: #475569;
-        --brand-soft: #fff4e6;
-        --brand-soft-2: #ffe8cc;
-    }
-    .hero-wrap {
-        background: linear-gradient(120deg, var(--brand-soft) 0%, var(--brand-soft-2) 100%);
-        border: 1px solid #ffd8a8;
-        border-radius: 16px;
-        padding: 1.1rem 1.3rem;
-        margin-bottom: 1rem;
-    }
-    .hero-title {
-        margin: 0;
-        color: var(--brand-ink);
-        font-size: 2.1rem;
-        line-height: 1.2;
-        font-weight: 750;
-    }
-    .hero-subtitle {
-        margin: 0.45rem 0 0 0;
-        color: var(--brand-muted);
-        font-size: 1rem;
-    }
-    .exec-box {
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        border-radius: 12px;
-        padding: 0.9rem 1rem;
-        margin-bottom: 1rem;
-    }
-    .signal-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.6rem;
-        margin-bottom: 1rem;
-    }
-    .signal-card {
-        border-radius: 10px;
-        padding: 0.75rem 0.85rem;
-        border: 1px solid transparent;
-    }
-    .signal-title {
-        font-size: 0.8rem;
-        color: #334155;
-        margin-bottom: 0.2rem;
-    }
-    .signal-value {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #0f172a;
-    }
-    .signal-good {
-        background: #ecfdf5;
-        border-color: #86efac;
-    }
-    .signal-warn {
-        background: #fffbeb;
-        border-color: #fde68a;
-    }
-    .signal-risk {
-        background: #fef2f2;
-        border-color: #fca5a5;
-    }
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-# Header
-st.markdown(
-    """
-<div class='hero-wrap'>
-    <h1 class='hero-title'>Sales Analytics Command Center</h1>
-    <p class='hero-subtitle'>Painel executivo para crescimento, concentracao, sazonalidade e decisao orientada por dados.</p>
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
-# =========================
-# SIDEBAR
-# =========================
 with st.sidebar:
-    st.markdown("## ⚙️ Configurações")
+    st.markdown("## Configuracoes")
 
     uploaded_file = st.file_uploader(
-        "📤 Upload seu CSV",
+        "Upload do CSV",
         type=["csv"],
-        help="Faça upload do seu arquivo de vendas",
+        help="Envie seu arquivo de vendas em CSV.",
     )
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
         dados_reais = True
         origem = uploaded_file.name
-        st.success(f"✅ Arquivo carregado: {uploaded_file.name}")
     else:
         df, dados_reais, origem = carregar_dados()
-        if dados_reais and origem:
-            st.success(f"✅ Dados locais carregados: {origem}")
-        else:
-            st.info("ℹ️ Usando dados de exemplo (simulados)")
 
-    st.markdown("---")
-    st.markdown("### 📋 Sobre os dados")
+    st.markdown("### Base")
     c1, c2 = st.columns(2)
     with c1:
         st.metric("Registros", f"{len(df):,}")
     with c2:
         st.metric("Colunas", len(df.columns))
 
-    tipo_dados = "**Dados Reais**" if dados_reais else "**Dados de Exemplo**"
-    st.markdown(f"Tipo: {tipo_dados}")
+    st.caption(f"Origem: {origem if origem else 'Amostra simulada'}")
 
-    st.markdown("---")
-    st.markdown("### 🔧 Mapeamento de Colunas")
-
+    st.markdown("### Mapeamento")
     colunas = df.columns.tolist()
-
-    # Data
     data_options = detect_date_columns(colunas) or colunas
-    coluna_data = st.selectbox("📅 Coluna de data", data_options, index=0)
+    coluna_data = st.selectbox("Coluna de data", data_options, index=0)
 
-    # Valor
     valor_options = detect_value_columns(df)
     if not valor_options:
-        st.error("❌ Nenhuma coluna numérica encontrada para usar como valor.")
+        st.error("Nenhuma coluna numerica encontrada para valor.")
         st.stop()
+    coluna_valor = st.selectbox("Coluna de valor", valor_options, index=0)
 
-    coluna_valor = st.selectbox("💰 Coluna de valor", valor_options, index=0)
-
-    # Período de crescimento
-    st.markdown("---")
-    st.markdown("### 📊 Análise de Crescimento")
-    periodo = st.selectbox("Período", ["Mensal", "Trimestral", "Anual"], index=0)
-
+    st.markdown("### Analise")
+    periodo = st.selectbox("Periodicidade", ["Mensal", "Trimestral", "Anual"], index=0)
     periodo_map = {"Mensal": "M", "Trimestral": "T", "Anual": "A"}
 
-    # Dimensão Pareto / Top3
-    st.markdown("---")
-    st.markdown("### 🧠 Métricas Executivas")
     dim_options = suggest_dimension_columns(df)
     if dim_options:
-        dim_concentracao = st.selectbox(
-            "📌 Dimensão para Pareto/Top 3", dim_options, index=0
-        )
-        top_n_pareto = st.slider(
-            "📌 Top N no Pareto", min_value=5, max_value=30, value=15, step=1
-        )
+        dim_concentracao = st.selectbox("Dimensao para Pareto", dim_options, index=0)
+        top_n_pareto = st.slider("Top N do Pareto", min_value=5, max_value=30, value=12, step=1)
     else:
         dim_concentracao = None
-        top_n_pareto = 15
-        st.info("ℹ️ Nenhuma coluna categórica encontrada para Pareto/Top 3.")
+        top_n_pareto = 12
+        st.info("Nenhuma coluna categorica encontrada para Pareto.")
 
 
-# =========================
-# MAIN
-# =========================
 try:
-    df_analise = df.copy()
+    render_header(origem, dados_reais)
 
-    # Converte data/valor
+    df_analise = df.copy()
     df_analise[coluna_data] = safe_to_datetime(df_analise[coluna_data])
     df_analise[coluna_valor] = safe_to_numeric(df_analise[coluna_valor])
-
     df_analise = df_analise.dropna(subset=[coluna_data, coluna_valor])
 
-    # Crescimento (usa sua função existente)
-    with st.spinner("🔄 Calculando análise de crescimento..."):
+    if df_analise.empty:
+        st.warning("Nao ha dados validos apos conversao de data e valor.")
+        st.stop()
+
+    with st.spinner("Calculando indicadores..."):
         resultado = calcular_crescimento(
             df_analise,
             coluna_data=coluna_data,
@@ -496,28 +632,21 @@ try:
             periodo=periodo_map[periodo],
         )
 
-    st.success("✅ Análise concluída!")
+    if resultado.empty:
+        st.warning("A agregacao nao gerou periodos para analise.")
+        st.stop()
 
-    # =========================
-    # MÉTRICAS EXECUTIVAS
-    # =========================
-    st.markdown("## 🧾 Métricas Executivas")
+    receita_total = float(df_analise[coluna_valor].sum())
 
-    receita_total = df_analise[coluna_valor].sum()
-
-    mes_pico_num = (
-        df_analise.groupby(df_analise[coluna_data].dt.month)[coluna_valor]
-        .sum()
-        .idxmax()
-    )
-    mes_pico = f"{month_name_pt(int(mes_pico_num))} ({int(mes_pico_num)})"
+    sazonal = df_analise.groupby(df_analise[coluna_data].dt.month)[coluna_valor].sum()
+    mes_pico_num = int(sazonal.idxmax()) if not sazonal.empty else 1
+    mes_pico = f"{month_name_pt(mes_pico_num)} ({mes_pico_num})"
 
     top3_share = None
     top3_labels = None
-
     if dim_concentracao and dim_concentracao in df_analise.columns:
         df_tmp = df_analise.dropna(subset=[dim_concentracao])
-        if len(df_tmp) > 0:
+        if not df_tmp.empty:
             top3 = (
                 df_tmp.groupby(dim_concentracao)[coluna_valor]
                 .sum()
@@ -527,18 +656,14 @@ try:
             top3_share = (top3.sum() / receita_total) * 100 if receita_total else 0
             top3_labels = ", ".join([str(x) for x in top3.index.tolist()])
 
-    crescimento_medio = resultado["crescimento_%"].mean()
+    crescimento_medio = float(resultado["crescimento_%"].mean())
     crescimento_valid = resultado.dropna(subset=["crescimento_%"])
     if not crescimento_valid.empty:
-        melhor_periodo_exec = str(
-            crescimento_valid.loc[
-                crescimento_valid["crescimento_%"].idxmax(), coluna_data
-            ]
+        melhor_periodo_exec = format_period_label(
+            crescimento_valid.loc[crescimento_valid["crescimento_%"].idxmax(), coluna_data]
         )
-        pior_periodo_exec = str(
-            crescimento_valid.loc[
-                crescimento_valid["crescimento_%"].idxmin(), coluna_data
-            ]
+        pior_periodo_exec = format_period_label(
+            crescimento_valid.loc[crescimento_valid["crescimento_%"].idxmin(), coluna_data]
         )
     else:
         melhor_periodo_exec = "N/A"
@@ -546,26 +671,16 @@ try:
 
     insights = build_executive_insights(
         receita_total=receita_total,
-        crescimento_medio=float(crescimento_medio)
-        if pd.notna(crescimento_medio)
-        else np.nan,
+        crescimento_medio=crescimento_medio,
         mes_pico=mes_pico,
         top3_share=top3_share,
         melhor_periodo=melhor_periodo_exec,
         pior_periodo=pior_periodo_exec,
     )
 
-    st.markdown("## Executive Snapshot")
-    insights_html = "".join([f"<li>{item}</li>" for item in insights])
-    st.markdown(
-        f"<div class='exec-box'><ul>{insights_html}</ul></div>",
-        unsafe_allow_html=True,
-    )
-
-    crescimento_label, crescimento_class = classify_growth_signal(
-        float(crescimento_medio) if pd.notna(crescimento_medio) else np.nan
-    )
+    crescimento_label, crescimento_class = classify_growth_signal(crescimento_medio)
     concentracao_label, concentracao_class = classify_concentration_signal(top3_share)
+
     ult_crescimento = (
         float(resultado["crescimento_%"].iloc[-1])
         if len(resultado) and pd.notna(resultado["crescimento_%"].iloc[-1])
@@ -573,19 +688,49 @@ try:
     )
     momentum_label, momentum_class = classify_growth_signal(ult_crescimento)
 
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.metric("Receita total", format_currency(receita_total, "$"))
+    with k2:
+        st.metric("Crescimento medio", f"{crescimento_medio:.1f}%" if pd.notna(crescimento_medio) else "N/A")
+    with k3:
+        st.metric("Pico sazonal", mes_pico)
+    with k4:
+        st.metric("Top 3", f"{top3_share:.1f}%" if top3_share is not None else "N/A")
+
+    render_proof_strip(
+        periodos=int(len(resultado)),
+        dimensoes=int(len(df_analise.columns)),
+        top3_share=top3_share,
+        crescimento_medio=crescimento_medio,
+    )
+    render_lead_strip(
+        receita_total=receita_total,
+        crescimento_medio=crescimento_medio,
+        top3_share=top3_share,
+        dados_reais=dados_reais,
+    )
+
+    st.markdown(
+        "<div class='section-card'><h4 style='margin-top:0'>Executive Snapshot</h4><ul class='snapshot-list'>"
+        + "".join([f"<li>{item}</li>" for item in insights])
+        + "</ul></div>",
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         f"""
 <div class='signal-grid'>
     <div class='signal-card {crescimento_class}'>
-        <div class='signal-title'>Sinal de Crescimento Medio</div>
+        <div class='signal-title'>Sinal de Crescimento</div>
         <div class='signal-value'>{crescimento_label}</div>
     </div>
     <div class='signal-card {concentracao_class}'>
-        <div class='signal-title'>Sinal de Concentracao Top 3</div>
+        <div class='signal-title'>Risco de Concentracao</div>
         <div class='signal-value'>{concentracao_label}</div>
     </div>
     <div class='signal-card {momentum_class}'>
-        <div class='signal-title'>Sinal de Momentum Atual</div>
+        <div class='signal-title'>Momentum Atual</div>
         <div class='signal-value'>{momentum_label}</div>
     </div>
 </div>
@@ -593,81 +738,82 @@ try:
         unsafe_allow_html=True,
     )
 
-    k1, k2, k3 = st.columns(3)
-    with k1:
-        st.metric("Receita Total", format_currency(receita_total, "$"))
-    with k2:
-        st.metric("Pico Sazonal", mes_pico)
-    with k3:
-        if top3_share is not None:
-            st.metric("Concentração Top 3", f"{top3_share:.1f}%")
-            if top3_labels:
-                st.caption(f"Top 3 em **{dim_concentracao}**: {top3_labels}")
-        else:
-            st.metric("Concentração Top 3", "N/A")
-            st.caption("Selecione uma dimensão categórica no menu lateral.")
+    tab_overview, tab_growth, tab_pareto, tab_yoy, tab_data = st.tabs(
+        ["Radar Executivo", "Crescimento", "Pareto", "YoY", "Dados"]
+    )
 
-    st.markdown("---")
+    with tab_overview:
+        st.caption(
+            "Leitura rapida para reunioes comerciais: tendencia de receita e ritmo de crescimento no mesmo quadro."
+        )
+        c_left, c_right = st.columns(2)
 
-    # =========================
-    # MÉTRICAS DE CRESCIMENTO (já existente)
-    # =========================
-    st.markdown("## 📈 Métricas de Crescimento")
+        with c_left:
+            fig_vendas = px.area(
+                resultado,
+                x=coluna_data,
+                y="total_vendas",
+                template="plotly_white",
+            )
+            fig_vendas.update_traces(line_color=COLOR_REVENUE)
+            fig_vendas.update_layout(
+                title="Evolucao das vendas",
+                xaxis_title="Periodo",
+                yaxis_title="Total",
+                hovermode="x unified",
+                height=420,
+                font=dict(family=PLOT_FONT),
+                margin=dict(l=10, r=10, t=45, b=10),
+            )
+            st.plotly_chart(fig_vendas, use_container_width=True)
 
-    c1, c2, c3, c4 = st.columns(4)
+        with c_right:
+            fig_cresc = px.bar(
+                resultado.dropna(subset=["crescimento_%"]),
+                x=coluna_data,
+                y="crescimento_%",
+                template="plotly_white",
+            )
+            fig_cresc.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.6)
+            fig_cresc.update_traces(marker_color=COLOR_GROWTH)
+            fig_cresc.update_layout(
+                title="Taxa de crescimento",
+                xaxis_title="Periodo",
+                yaxis_title="Crescimento (%)",
+                height=420,
+                font=dict(family=PLOT_FONT),
+                margin=dict(l=10, r=10, t=45, b=10),
+            )
+            st.plotly_chart(fig_cresc, use_container_width=True)
 
-    with c1:
+    with tab_growth:
+        st.caption("Performance ao longo dos periodos com destaque para variacao recente.")
+        c1, c2, c3, c4 = st.columns(4)
+
         delta = (
-            resultado["crescimento_%"].iloc[-1] - resultado["crescimento_%"].iloc[-2]
-            if len(resultado) > 1
-            else 0
+            float(resultado["crescimento_%"].iloc[-1] - resultado["crescimento_%"].iloc[-2])
+            if len(resultado) > 1 and pd.notna(resultado["crescimento_%"].iloc[-1]) and pd.notna(resultado["crescimento_%"].iloc[-2])
+            else np.nan
         )
-        st.metric(
-            "Crescimento Médio",
-            f"{crescimento_medio:.1f}%" if not pd.isna(crescimento_medio) else "N/A",
-            delta=f"{delta:.1f} pp" if not pd.isna(delta) else None,
-        )
+        ultimo_valor = float(resultado["total_vendas"].iloc[-1]) if len(resultado) else np.nan
 
-    with c2:
-        ultimo_valor = resultado["total_vendas"].iloc[-1] if len(resultado) > 0 else 0
-        st.metric("Último Período", f"${ultimo_valor:,.0f}")
-
-    with c3:
         melhor_cresc = resultado["crescimento_%"].max()
-        melhor_periodo = (
-            resultado.loc[resultado["crescimento_%"].idxmax(), coluna_data]
-            if not pd.isna(melhor_cresc)
-            else "N/A"
-        )
-        st.metric(
-            "Melhor Período",
-            f"{melhor_cresc:.1f}%" if not pd.isna(melhor_cresc) else "N/A",
-            delta=f"em {melhor_periodo}" if melhor_periodo != "N/A" else None,
-        )
-
-    with c4:
         pior_cresc = resultado["crescimento_%"].min()
-        pior_periodo = (
-            resultado.loc[resultado["crescimento_%"].idxmin(), coluna_data]
-            if not pd.isna(pior_cresc)
-            else "N/A"
-        )
-        st.metric(
-            "Pior Período",
-            f"{pior_cresc:.1f}%" if not pd.isna(pior_cresc) else "N/A",
-            delta=f"em {pior_periodo}" if pior_periodo != "N/A" else None,
-        )
 
-    st.markdown("---")
+        with c1:
+            st.metric(
+                "Crescimento medio",
+                f"{crescimento_medio:.1f}%" if pd.notna(crescimento_medio) else "N/A",
+                delta=f"{delta:.1f} pp" if pd.notna(delta) else None,
+            )
+        with c2:
+            st.metric("Ultimo periodo", format_currency(ultimo_valor, "$") if pd.notna(ultimo_valor) else "N/A")
+        with c3:
+            st.metric("Melhor periodo", f"{melhor_cresc:.1f}%" if pd.notna(melhor_cresc) else "N/A")
+        with c4:
+            st.metric("Pior periodo", f"{pior_cresc:.1f}%" if pd.notna(pior_cresc) else "N/A")
 
-    # =========================
-    # GRÁFICOS PRINCIPAIS
-    # =========================
-    g1, g2 = st.columns(2)
-
-    with g1:
-        st.markdown("### 💰 Evolução das Vendas")
-        fig_vendas = px.line(
+        fig_line = px.line(
             resultado,
             x=coluna_data,
             y="total_vendas",
@@ -675,196 +821,126 @@ try:
             line_shape="spline",
             template="plotly_white",
         )
-
-        fig_vendas.update_layout(
-            xaxis_title="Período",
+        fig_line.update_traces(line=dict(color=COLOR_REVENUE, width=3), marker=dict(size=6))
+        fig_line.update_layout(
+            xaxis_title="Periodo",
             yaxis_title="Total",
             hovermode="x unified",
-            height=420,
+            height=440,
             font=dict(family=PLOT_FONT),
+            margin=dict(l=10, r=10, t=20, b=10),
         )
-        fig_vendas.update_traces(
-            line=dict(color=COLOR_REVENUE, width=3), marker=dict(size=6)
-        )
-        st.plotly_chart(fig_vendas, use_container_width=True)
+        st.plotly_chart(fig_line, use_container_width=True)
 
-    with g2:
-        st.markdown("### 📊 Taxa de Crescimento")
-        fig_cresc = px.bar(
-            resultado.dropna(subset=["crescimento_%"]),
-            x=coluna_data,
-            y="crescimento_%",
-            template="plotly_white",
-        )
-        fig_cresc.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
-        fig_cresc.update_traces(marker_color=COLOR_GROWTH)
-        fig_cresc.update_layout(
-            xaxis_title="Período",
-            yaxis_title="Crescimento (%)",
-            height=420,
-            font=dict(family=PLOT_FONT),
-        )
-        st.plotly_chart(fig_cresc, use_container_width=True)
+    with tab_pareto:
+        st.caption("Concentracao de receita para identificar dependencias e oportunidades de diversificacao.")
+        if dim_concentracao and dim_concentracao in df_analise.columns:
+            pareto_df = compute_pareto(df_analise, dim_concentracao, coluna_valor)
+            fig_pareto = build_pareto_chart(pareto_df, dim_concentracao, top_n=top_n_pareto)
+            st.plotly_chart(fig_pareto, use_container_width=True)
 
-    st.markdown("---")
+            if top3_labels:
+                st.caption(f"Top 3 em {dim_concentracao}: {top3_labels}")
 
-    # =========================
-    # PARETO AUTOMÁTICO
-    # =========================
-    st.markdown("## 🧩 Concentração de Receita (Pareto)")
-
-    if dim_concentracao and dim_concentracao in df_analise.columns:
-        pareto_df = compute_pareto(df_analise, dim_concentracao, coluna_valor)
-        fig_pareto = build_pareto_chart(pareto_df, dim_concentracao, top_n=top_n_pareto)
-        st.plotly_chart(fig_pareto, use_container_width=True)
-
-        with st.expander("📋 Ver tabela Pareto"):
             show_df = pareto_df.copy()
             show_df["total"] = show_df["total"].apply(lambda x: format_currency(x, "$"))
             show_df["share_pct"] = show_df["share_pct"].map(lambda x: f"{x:.2f}%")
-            show_df["cum_share_pct"] = show_df["cum_share_pct"].map(
-                lambda x: f"{x:.2f}%"
-            )
+            show_df["cum_share_pct"] = show_df["cum_share_pct"].map(lambda x: f"{x:.2f}%")
             st.dataframe(
                 show_df[[dim_concentracao, "total", "share_pct", "cum_share_pct"]],
                 use_container_width=True,
                 hide_index=True,
             )
-    else:
-        st.info(
-            "ℹ️ Selecione uma dimensão categórica no menu lateral para gerar o Pareto."
-        )
+        else:
+            st.info("Selecione uma dimensao categorica para habilitar Pareto.")
 
-    st.markdown("---")
+    with tab_yoy:
+        st.caption("Comparacao ano contra ano para validar consistencia da expansao.")
+        yoy_df = compute_yoy(df_analise, coluna_data, coluna_valor, freq="ME")
 
-    # =========================
-    # YOY (Year-over-Year)
-    # =========================
-    st.markdown("## 📅 Comparação YoY (Year-over-Year)")
-
-    yoy_df = compute_yoy(df_analise, coluna_data, coluna_valor, freq="ME")  # mensal
-    yoy_df_display = yoy_df.copy()
-
-    # Cards YoY
-    yy1, yy2, yy3 = st.columns(3)
-    with yy1:
-        total_ultimo = yoy_df["total"].iloc[-1] if len(yoy_df) else 0
-        st.metric("Total (último mês)", format_currency(total_ultimo, "$"))
-    with yy2:
+        yy1, yy2, yy3 = st.columns(3)
+        total_ultimo = yoy_df["total"].iloc[-1] if len(yoy_df) else np.nan
         yoy_pct_last = yoy_df["yoy_pct"].iloc[-1] if len(yoy_df) else np.nan
-        st.metric(
-            "YoY % (último mês)",
-            f"{yoy_pct_last:.2f}%" if pd.notna(yoy_pct_last) else "N/A",
-        )
-    with yy3:
         yoy_abs_last = yoy_df["yoy_abs"].iloc[-1] if len(yoy_df) else np.nan
-        st.metric(
-            "YoY Abs (último mês)",
-            format_currency(yoy_abs_last, "$") if pd.notna(yoy_abs_last) else "N/A",
+
+        with yy1:
+            st.metric("Total (ultimo mes)", format_currency(total_ultimo, "$") if pd.notna(total_ultimo) else "N/A")
+        with yy2:
+            st.metric("YoY % (ultimo mes)", f"{yoy_pct_last:.2f}%" if pd.notna(yoy_pct_last) else "N/A")
+        with yy3:
+            st.metric("YoY abs (ultimo mes)", format_currency(yoy_abs_last, "$") if pd.notna(yoy_abs_last) else "N/A")
+
+        x_axis = yoy_df.columns[0] if not yoy_df.empty else None
+        fig_yoy = go.Figure()
+        if x_axis:
+            fig_yoy.add_trace(
+                go.Scatter(
+                    x=yoy_df[x_axis],
+                    y=yoy_df["total"],
+                    mode="lines+markers",
+                    name="Total mensal",
+                    line=dict(color=COLOR_REVENUE, width=3),
+                )
+            )
+            fig_yoy.add_trace(
+                go.Scatter(
+                    x=yoy_df[x_axis],
+                    y=yoy_df["yoy_pct"],
+                    mode="lines+markers",
+                    name="YoY (%)",
+                    yaxis="y2",
+                    line=dict(color=COLOR_YOY, width=2.5),
+                )
+            )
+
+        fig_yoy.update_layout(
+            template="plotly_white",
+            height=430,
+            xaxis_title="Mes",
+            yaxis=dict(title="Total mensal"),
+            yaxis2=dict(title="YoY (%)", overlaying="y", side="right"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            font=dict(family=PLOT_FONT),
+            margin=dict(l=30, r=30, t=30, b=30),
         )
+        st.plotly_chart(fig_yoy, use_container_width=True)
 
-    # Gráfico YoY
-    fig_yoy = go.Figure()
-    fig_yoy.add_trace(
-        go.Scatter(
-            x=yoy_df["ORDERDATE"]
-            if "ORDERDATE" in yoy_df.columns
-            else yoy_df.iloc[:, 0],
-            y=yoy_df["total"],
-            mode="lines+markers",
-            name="Total Mensal",
-            line=dict(color=COLOR_REVENUE, width=3),
-        )
-    )
-    fig_yoy.add_trace(
-        go.Scatter(
-            x=yoy_df["ORDERDATE"]
-            if "ORDERDATE" in yoy_df.columns
-            else yoy_df.iloc[:, 0],
-            y=yoy_df["yoy_pct"],
-            mode="lines+markers",
-            name="YoY (%)",
-            yaxis="y2",
-            line=dict(color=COLOR_YOY, width=2.5),
-        )
-    )
+        yoy_view = yoy_df.rename(columns={yoy_df.columns[0]: "Periodo"}) if not yoy_df.empty else yoy_df
+        if not yoy_view.empty:
+            yoy_styler = yoy_view.style.format(
+                {
+                    "total": lambda x: format_currency(x, "$"),
+                    "yoy_abs": lambda x: format_currency(x, "$") if pd.notna(x) else "-",
+                    "yoy_pct": lambda x: f"{x:.2f}%" if pd.notna(x) else "-",
+                }
+            ).background_gradient(subset=["yoy_pct"], cmap="RdYlGn")
+            st.dataframe(yoy_styler, use_container_width=True, hide_index=True)
+        else:
+            st.info("Ainda nao ha historico suficiente para tabela YoY.")
 
-    fig_yoy.update_layout(
-        template="plotly_white",
-        height=420,
-        xaxis_title="Mês",
-        yaxis=dict(title="Total Mensal"),
-        yaxis2=dict(title="YoY (%)", overlaying="y", side="right"),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        font=dict(family=PLOT_FONT),
-        margin=dict(l=30, r=30, t=30, b=30),
-    )
-    st.plotly_chart(fig_yoy, use_container_width=True)
-
-    with st.expander("📋 Ver tabela YoY"):
-        date_col_name = yoy_df.columns[0]
-        yoy_view = yoy_df_display.rename(columns={date_col_name: "Período"})
-
-        yoy_styler = yoy_view.style.format(
-            {
-                "total": lambda x: format_currency(x, "$"),
-                "yoy_abs": lambda x: format_currency(x, "$") if pd.notna(x) else "-",
-                "yoy_pct": lambda x: f"{x:.2f}%" if pd.notna(x) else "-",
-            }
-        ).background_gradient(subset=["yoy_pct"], cmap="RdYlGn")
-
-        st.dataframe(yoy_styler, use_container_width=True, hide_index=True)
-
-    st.markdown("---")
-
-    # =========================
-    # TABS: DETALHES / ESTATÍSTICAS / SOBRE
-    # =========================
-    tab1, tab2, tab3 = st.tabs(["📋 Dados Detalhados", "📊 Estatísticas", "ℹ️ Sobre"])
-
-    with tab1:
-        st.markdown("### Tabela de Resultados (Crescimento)")
-
+    with tab_data:
+        st.caption("Camada analitica para auditoria e compartilhamento da analise.")
         tabela = resultado.rename(
             columns={
-                coluna_data: "Período",
-                "total_vendas": "Vendas Totais",
+                coluna_data: "Periodo",
+                "total_vendas": "Vendas totais",
                 "crescimento_%": "Crescimento",
             }
         )
 
         tabela_styler = tabela.style.format(
             {
-                "Vendas Totais": lambda x: format_currency(x, "$"),
+                "Vendas totais": lambda x: format_currency(x, "$"),
                 "Crescimento": lambda x: f"{x:.2f}%" if pd.notna(x) else "-",
             }
         ).background_gradient(subset=["Crescimento"], cmap="RdYlGn")
 
         st.dataframe(tabela_styler, use_container_width=True, hide_index=True)
 
-        csv = resultado.to_csv(index=False)
-        st.download_button(
-            label="📥 Download CSV (crescimento)",
-            data=csv,
-            file_name=f"analise_crescimento_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-        )
-
-    with tab2:
-        st.markdown("### Estatísticas Descritivas (Crescimento %)")
         stats = resultado["crescimento_%"].describe()
-
         stats_df = pd.DataFrame(
             {
-                "Estatística": [
-                    "Média",
-                    "Desvio Padrão",
-                    "Mínimo",
-                    "25%",
-                    "50%",
-                    "75%",
-                    "Máximo",
-                ],
+                "Estatistica": ["Media", "Desvio padrao", "Minimo", "25%", "50%", "75%", "Maximo"],
                 "Valor": [
                     f"{stats['mean']:.2f}%" if pd.notna(stats.get("mean")) else "N/A",
                     f"{stats['std']:.2f}%" if pd.notna(stats.get("std")) else "N/A",
@@ -878,64 +954,26 @@ try:
         )
         st.dataframe(stats_df, hide_index=True, use_container_width=True)
 
-        st.markdown("### Períodos de Destaque")
-        t1, t2 = st.columns(2)
-
-        with t1:
-            st.markdown("**🏆 Top 3 Melhores Crescimentos**")
-            top3 = resultado.nlargest(3, "crescimento_%")[
-                [coluna_data, "total_vendas", "crescimento_%"]
-            ]
-            st.dataframe(top3, use_container_width=True, hide_index=True)
-
-        with t2:
-            st.markdown("**📉 Top 3 Piores Crescimentos**")
-            bottom3 = resultado.nsmallest(3, "crescimento_%")[
-                [coluna_data, "total_vendas", "crescimento_%"]
-            ]
-            st.dataframe(bottom3, use_container_width=True, hide_index=True)
-
-    with tab3:
-        st.markdown("### Sobre este Dashboard")
-
-        st.markdown(
-            """
-**Funcionalidades principais:**
-- 📤 Upload de CSV com seleção dinâmica de colunas
-- 📈 Crescimento periódico (mensal/trimestral/anual)
-- 🧾 Métricas executivas (Receita Total, Pico Sazonal, Concentração Top 3)
-- 🧩 Pareto automático (concentração de receita)
-- 📅 Comparação YoY (mensal)
-- 📋 Exportação de resultados
-
-**Dica de uso:**
-1. Faça upload do CSV (ou use dados locais/exemplo)
-2. Selecione coluna de data e valor
-3. (Opcional) Selecione dimensão para Pareto/Top 3
-4. Explore crescimento, Pareto e YoY
-
-**Autor:** Samuel Maia
-**Projeto:** https://github.com/samuelmaia-analytics/analise-vendas-python
-"""
+        csv = resultado.to_csv(index=False)
+        st.download_button(
+            label="Download CSV (crescimento)",
+            data=csv,
+            file_name=f"analise_crescimento_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
         )
 
-        if not dados_reais:
-            st.info(
-                "💡 Para uma análise ainda mais precisa, faça upload do seu CSV real."
-            )
-
 except Exception as e:
-    st.error(f"❌ Erro na análise: {str(e)}")
+    st.error(f"Erro na analise: {str(e)}")
     st.exception(e)
 
-# Footer
 st.markdown("---")
 st.markdown(
     f"""
-<div style='text-align: center; color: #666; padding: 1rem;'>
-    Desenvolvido por <a href='https://github.com/samuelmaia-analytics' target='_blank'>Samuel Maia</a> |
-    Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+<div style='text-align:center; color:#334155; padding:0.8rem;'>
+    Desenvolvido por <a href='https://github.com/samuelmaia-analytics' target='_blank'>Samuel Maia</a>
 </div>
 """,
     unsafe_allow_html=True,
 )
+
+
