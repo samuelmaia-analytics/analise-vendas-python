@@ -149,21 +149,30 @@ def carregar_dados() -> tuple[pd.DataFrame, bool, str | None]:
     return criar_dados_exemplo(), False, None
 
 
-@st.cache_data(show_spinner=False)
 def carregar_csv_upload(file_bytes: bytes) -> pd.DataFrame:
-    # Tenta encodings comuns para evitar erro/trava em arquivos heterogeneos.
+    # Tenta encodings e delimitadores comuns para evitar erro/trava em uploads heterogeneos.
     encodings = ["utf-8-sig", "utf-8", "ISO-8859-1", "cp1252"]
+    separators = [None, ",", ";", "\t", "|"]
     last_error: Exception | None = None
 
     for enc in encodings:
-        try:
-            return pd.read_csv(
-                BytesIO(file_bytes),
-                encoding=enc,
-                low_memory=False,
-            )
-        except Exception as exc:  # noqa: PERF203
-            last_error = exc
+        for sep in separators:
+            try:
+                kwargs = {
+                    "encoding": enc,
+                    "low_memory": False,
+                }
+                if sep is None:
+                    kwargs["sep"] = None
+                    kwargs["engine"] = "python"
+                else:
+                    kwargs["sep"] = sep
+
+                parsed = pd.read_csv(BytesIO(file_bytes), **kwargs)
+                if parsed.shape[1] >= 2:
+                    return parsed
+            except Exception as exc:  # noqa: PERF203
+                last_error = exc
 
     raise ValueError(f"Nao foi possivel ler o CSV enviado. Erro: {last_error}")
 
@@ -651,8 +660,17 @@ with st.sidebar:
             )
             st.stop()
 
-        with st.spinner("Carregando arquivo..."):
-            df = carregar_csv_upload(file_bytes)
+        upload_key = f"{uploaded_file.name}:{len(file_bytes)}"
+        cached_key = st.session_state.get("upload_key")
+        cached_df = st.session_state.get("upload_df")
+
+        if cached_key == upload_key and isinstance(cached_df, pd.DataFrame):
+            df = cached_df
+        else:
+            with st.spinner("Carregando arquivo..."):
+                df = carregar_csv_upload(file_bytes)
+            st.session_state["upload_key"] = upload_key
+            st.session_state["upload_df"] = df
 
         if df.empty:
             st.error("O arquivo foi carregado, mas nao possui linhas validas.")
