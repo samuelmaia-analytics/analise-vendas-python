@@ -1,5 +1,7 @@
 ﻿import os
+from contextlib import redirect_stdout
 from datetime import datetime
+from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -183,6 +185,24 @@ def compute_pareto(df: pd.DataFrame, dim_col: str, value_col: str) -> pd.DataFra
     pareto["cum_share_pct"] = pareto["share_pct"].cumsum()
     pareto["rank"] = np.arange(1, len(pareto) + 1)
     return pareto
+
+
+@st.cache_data(show_spinner=False)
+def calcular_crescimento_cached(
+    df: pd.DataFrame,
+    coluna_data: str,
+    coluna_valor: str,
+    periodo: str,
+) -> pd.DataFrame:
+    # Silencia logs verbosos da rotina legada para evitar overhead em reruns.
+    sink = StringIO()
+    with redirect_stdout(sink):
+        return calcular_crescimento(
+            df.copy(),
+            coluna_data=coluna_data,
+            coluna_valor=coluna_valor,
+            periodo=periodo,
+        )
 
 
 def build_pareto_chart(
@@ -656,7 +676,7 @@ try:
         st.stop()
 
     with st.spinner("Calculando indicadores..."):
-        resultado = calcular_crescimento(
+        resultado = calcular_crescimento_cached(
             df_analise,
             coluna_data=coluna_data,
             coluna_valor=coluna_valor,
@@ -1006,5 +1026,4 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
 
