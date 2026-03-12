@@ -8,6 +8,9 @@ def _normalize_sales_frame(
     date_col: str,
     sales_col: str,
 ) -> pd.DataFrame:
+    if date_col == sales_col:
+        raise ValueError("A coluna de data e a coluna de valor nao podem ser iguais")
+
     missing = [column for column in [date_col, sales_col] if column not in df.columns]
     if missing:
         raise ValueError(f"Colunas obrigatorias ausentes: {', '.join(missing)}")

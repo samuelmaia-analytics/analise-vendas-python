@@ -34,6 +34,7 @@ from app.presentation.data import (
     carregar_dados,
     detect_date_columns,
     detect_value_columns,
+    filter_value_columns,
     format_currency,
     month_name_pt,
     safe_to_datetime,
@@ -120,11 +121,14 @@ with st.sidebar:
     data_options = detect_date_columns(colunas) or colunas
     coluna_data = st.selectbox(tr("date_col", lang), data_options, index=0)
 
-    valor_options = detect_value_columns(df)
+    valor_options = filter_value_columns(detect_value_columns(df), coluna_data)
     if not valor_options:
         st.error(tr("no_numeric", lang))
         st.stop()
     coluna_valor = st.selectbox(tr("value_col", lang), valor_options, index=0)
+    if coluna_valor == coluna_data:
+        st.error(tr("same_date_value_col", lang))
+        st.stop()
 
     st.markdown(f"### {tr('analysis', lang)}")
     period_labels = [tr("monthly", lang), tr("quarterly", lang), tr("yearly", lang)]

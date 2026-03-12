@@ -27,6 +27,13 @@ def test_compute_growth_over_period_rejects_missing_columns():
         compute_growth_over_period(df, date_col="ORDERDATE", sales_col="SALES")
 
 
+def test_compute_growth_over_period_rejects_same_date_and_value_column():
+    df = pd.DataFrame({"ORDERDATE": ["2024-01-01"], "SALES": [10]})
+
+    with pytest.raises(ValueError, match="nao podem ser iguais"):
+        compute_growth_over_period(df, date_col="ORDERDATE", sales_col="ORDERDATE")
+
+
 def test_compute_growth_over_period_rejects_empty_normalized_dataset():
     df = pd.DataFrame({"ORDERDATE": ["invalid"], "SALES": ["invalid"]})
 

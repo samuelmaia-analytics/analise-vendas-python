@@ -7,6 +7,7 @@ from app.presentation.data import (
     carregar_csv_upload,
     detect_date_columns,
     detect_value_columns,
+    filter_value_columns,
     format_currency,
     month_name_pt,
     safe_to_datetime,
@@ -42,6 +43,7 @@ def test_column_detection_helpers_prioritize_relevant_columns():
 
     assert detect_date_columns(df.columns.tolist()) == ["ORDERDATE"]
     assert "SALES" in detect_value_columns(df)
+    assert filter_value_columns(["ORDERDATE", "SALES"], "ORDERDATE") == ["SALES"]
     dims = suggest_dimension_columns(df)
     assert dims[:2] == ["PRODUCTLINE", "COUNTRY"]
 

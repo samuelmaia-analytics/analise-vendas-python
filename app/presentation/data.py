@@ -61,6 +61,11 @@ def detect_value_columns(df: pd.DataFrame) -> list[str]:
     return list(dict.fromkeys(by_name + numeric_cols))
 
 
+def filter_value_columns(value_columns: list[str], date_col: str) -> list[str]:
+    filtered = [column for column in value_columns if column != date_col]
+    return filtered or value_columns
+
+
 def suggest_dimension_columns(df: pd.DataFrame) -> list[str]:
     cols = df.columns.tolist()
     hints = []
