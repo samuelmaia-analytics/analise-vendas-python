@@ -1,7 +1,4 @@
-import os
-import csv as csvlib
 from datetime import datetime
-from io import BytesIO
 
 import numpy as np
 import pandas as pd
@@ -9,18 +6,40 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.sales_analytics.metrics import compute_growth_over_period
-
-APP_TITLE = "Revenue Intelligence - Samuel Maia"
-APP_ICON = ":bar_chart:"
-LAYOUT = "wide"
-
-COLOR_REVENUE = "#0b3c5d"
-COLOR_GROWTH = "#c2410c"
-COLOR_PARETO_BAR = "#0f766e"
-COLOR_PARETO_LINE = "#b45309"
-COLOR_YOY = "#1d4ed8"
-PLOT_FONT = "Segoe UI, Segoe UI Variable, Helvetica Neue, Arial, sans-serif"
+from app.ui.analytics import (
+    build_executive_insights,
+    calcular_crescimento_cached,
+    classify_concentration_signal,
+    classify_growth_signal,
+    compute_pareto,
+    compute_yoy,
+    format_period_label,
+)
+from app.ui.components import (
+    APP_ICON,
+    APP_TITLE,
+    COLOR_GROWTH,
+    COLOR_REVENUE,
+    COLOR_YOY,
+    LAYOUT,
+    PLOT_FONT,
+    build_pareto_chart,
+    inject_css,
+    render_header,
+    render_lead_strip,
+    render_proof_strip,
+)
+from app.ui.data import (
+    carregar_csv_upload,
+    carregar_dados,
+    detect_date_columns,
+    detect_value_columns,
+    format_currency,
+    month_name_pt,
+    safe_to_datetime,
+    safe_to_numeric,
+    suggest_dimension_columns,
+)
 
 I18N: dict[str, dict[str, str]] = {
     "en": {
@@ -317,641 +336,6 @@ def tr(key: str, lang: str | None = None, **kwargs: object) -> str:
     return text.format(**kwargs) if kwargs else text
 
 
-def format_currency(value: float, symbol: str = "$") -> str:
-    try:
-        return f"{symbol}{value:,.2f}"
-    except Exception:
-        return "N/A"
-
-
-def safe_to_datetime(series: pd.Series) -> pd.Series:
-    return pd.to_datetime(series, errors="coerce")
-
-
-def safe_to_numeric(series: pd.Series) -> pd.Series:
-    return pd.to_numeric(series, errors="coerce")
-
-
-def month_name_pt(month_num: int) -> str:
-    meses = {
-        1: "Jan",
-        2: "Fev",
-        3: "Mar",
-        4: "Abr",
-        5: "Mai",
-        6: "Jun",
-        7: "Jul",
-        8: "Ago",
-        9: "Set",
-        10: "Out",
-        11: "Nov",
-        12: "Dez",
-    }
-    return meses.get(int(month_num), str(month_num))
-
-
-def detect_date_columns(columns: list[str]) -> list[str]:
-    return [
-        c
-        for c in columns
-        if any(t in c.lower() for t in ["date", "data", "dia", "mes", "orderdate"])
-    ]
-
-
-def detect_value_columns(df: pd.DataFrame) -> list[str]:
-    cols = df.columns.tolist()
-    by_name = [
-        c
-        for c in cols
-        if any(
-            t in c.lower()
-            for t in ["sales", "venda", "price", "total", "valor", "receita"]
-        )
-    ]
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    return list(dict.fromkeys(by_name + numeric_cols))
-
-
-def suggest_dimension_columns(df: pd.DataFrame) -> list[str]:
-    cols = df.columns.tolist()
-    hints = []
-    for c in [
-        "PRODUCTLINE",
-        "PRODUTO",
-        "CATEGORIA",
-        "PRODUCT",
-        "CATEGORY",
-        "COUNTRY",
-        "PAIS",
-        "REGIAO",
-        "REGION",
-        "CUSTOMERNAME",
-        "CLIENTE",
-    ]:
-        if c in cols:
-            hints.append(c)
-
-    cat_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
-    return list(dict.fromkeys(hints + cat_cols))
-
-
-@st.cache_data
-def criar_dados_exemplo() -> pd.DataFrame:
-    np.random.seed(42)
-
-    datas = pd.date_range("2023-01-01", "2024-12-31", freq="D")
-    tendencia = np.linspace(1000, 2000, len(datas))
-    sazonalidade = 500 * np.sin(2 * np.pi * np.arange(len(datas)) / 365)
-    ruido = np.random.normal(0, 100, len(datas))
-
-    vendas = np.maximum(tendencia + sazonalidade + ruido, 500)
-
-    produtos = [f"PROD_{i:03d}" for i in range(1, 21)]
-    clientes = [f"CLI_{i:03d}" for i in range(1, 51)]
-
-    return pd.DataFrame(
-        {
-            "DATA": datas,
-            "VENDAS": vendas.astype(int),
-            "QUANTIDADE": np.random.randint(1, 50, len(datas)),
-            "PRODUTO": np.random.choice(produtos, len(datas)),
-            "CLIENTE": np.random.choice(clientes, len(datas)),
-            "CATEGORIA": np.random.choice(
-                ["Eletronicos", "Moveis", "Roupas", "Livros"], len(datas)
-            ),
-        }
-    )
-
-
-@st.cache_data
-def carregar_dados() -> tuple[pd.DataFrame, bool, str | None]:
-    possiveis_caminhos = [
-        "data/processed/fato_vendas.csv",
-        "legacy/dados_processados/fato_vendas.csv",
-        "data/raw/fato_vendas.csv",
-        "legacy/dados/fato_vendas.csv",
-        "./data/processed/fato_vendas.csv",
-        "./legacy/dados_processados/fato_vendas.csv",
-        "./data/raw/fato_vendas.csv",
-        "./legacy/dados/fato_vendas.csv",
-    ]
-    for caminho in possiveis_caminhos:
-        if os.path.exists(caminho):
-            return pd.read_csv(caminho), True, caminho
-
-    return criar_dados_exemplo(), False, None
-
-
-def carregar_csv_upload(file_bytes: bytes) -> pd.DataFrame:
-    # Detecta encoding/separador em amostra para evitar multiplos parses pesados.
-    encodings = ["utf-8-sig", "utf-8", "ISO-8859-1", "cp1252"]
-    separators = [",", ";", "\t", "|"]
-    sample = file_bytes[:200_000]
-    last_error: Exception | None = None
-
-    for enc in encodings:
-        try:
-            sample_text = sample.decode(enc)
-        except UnicodeDecodeError:
-            continue
-
-        try:
-            sep = csvlib.Sniffer().sniff(
-                sample_text, delimiters="".join(separators)
-            ).delimiter
-        except csvlib.Error:
-            sep = max(separators, key=sample_text.count)
-            if sample_text.count(sep) == 0:
-                sep = ","
-
-        try:
-            parsed = pd.read_csv(
-                BytesIO(file_bytes),
-                encoding=enc,
-                sep=sep,
-                low_memory=False,
-                on_bad_lines="skip",
-            )
-            if parsed.shape[1] >= 2:
-                return parsed
-        except Exception as exc:  # noqa: PERF203
-            last_error = exc
-
-    # Fallback para casos em que o sniffer falha.
-    for enc in encodings:
-        for sep in separators:
-            try:
-                parsed = pd.read_csv(
-                    BytesIO(file_bytes),
-                    encoding=enc,
-                    sep=sep,
-                    low_memory=False,
-                    on_bad_lines="skip",
-                )
-                if parsed.shape[1] >= 2:
-                    return parsed
-            except Exception as exc:  # noqa: PERF203
-                last_error = exc
-
-    raise ValueError(f"Nao foi possivel ler o CSV enviado. Erro: {last_error}")
-
-def compute_yoy(
-    df: pd.DataFrame, date_col: str, value_col: str, freq: str = "ME"
-) -> pd.DataFrame:
-    tmp = df[[date_col, value_col]].copy()
-    tmp[date_col] = safe_to_datetime(tmp[date_col])
-    tmp[value_col] = safe_to_numeric(tmp[value_col])
-    tmp = tmp.dropna(subset=[date_col, value_col])
-
-    agg = (
-        tmp.set_index(date_col)
-        .resample(freq)[value_col]
-        .sum()
-        .reset_index()
-        .rename(columns={value_col: "total"})
-    )
-    agg["yoy_abs"] = agg["total"] - agg["total"].shift(12)
-    agg["yoy_pct"] = (agg["total"] / agg["total"].shift(12) - 1) * 100
-    return agg
-
-
-def compute_pareto(df: pd.DataFrame, dim_col: str, value_col: str) -> pd.DataFrame:
-    tmp = df[[dim_col, value_col]].copy()
-    tmp[value_col] = safe_to_numeric(tmp[value_col])
-    tmp = tmp.dropna(subset=[dim_col, value_col])
-
-    pareto = (
-        tmp.groupby(dim_col)[value_col]
-        .sum()
-        .sort_values(ascending=False)
-        .reset_index()
-        .rename(columns={value_col: "total"})
-    )
-    total_all = pareto["total"].sum()
-    pareto["share_pct"] = (pareto["total"] / total_all) * 100 if total_all else 0
-    pareto["cum_share_pct"] = pareto["share_pct"].cumsum()
-    pareto["rank"] = np.arange(1, len(pareto) + 1)
-    return pareto
-
-
-@st.cache_data(show_spinner=False)
-def calcular_crescimento_cached(
-    df: pd.DataFrame,
-    coluna_data: str,
-    coluna_valor: str,
-    periodo: str,
-) -> pd.DataFrame:
-    return compute_growth_over_period(
-        df=df.copy(),
-        date_col=coluna_data,
-        sales_col=coluna_valor,
-        period=periodo,
-    )
-
-
-def build_pareto_chart(
-    pareto_df: pd.DataFrame, dim_col: str, top_n: int = 15, lang: str = "en"
-) -> go.Figure:
-    plot_df = pareto_df.head(top_n).copy()
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            x=plot_df[dim_col].astype(str),
-            y=plot_df["total"],
-            name="Total",
-            marker_color=COLOR_PARETO_BAR,
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=plot_df[dim_col].astype(str),
-            y=plot_df["cum_share_pct"],
-            name="% acumulado",
-            mode="lines+markers",
-            yaxis="y2",
-            line=dict(color=COLOR_PARETO_LINE, width=2.5),
-        )
-    )
-
-    fig.update_layout(
-        template="plotly_white",
-        height=420,
-        xaxis_title=dim_col,
-        yaxis=dict(title="Total", showgrid=True),
-        yaxis2=dict(title="% acumulado", overlaying="y", side="right", range=[0, 100]),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        font=dict(family=PLOT_FONT),
-        margin=dict(l=30, r=30, t=30, b=30),
-    )
-    return fig
-
-
-def classify_growth_signal(value: float, lang: str) -> tuple[str, str]:
-    if pd.isna(value):
-        return tr("na", lang), "signal-warn"
-    if value >= 8:
-        return tr("growth_strong", lang), "signal-good"
-    if value >= 2:
-        return tr("growth_moderate", lang), "signal-warn"
-    return tr("growth_weak", lang), "signal-risk"
-
-
-def classify_concentration_signal(value: float | None, lang: str) -> tuple[str, str]:
-    if value is None or pd.isna(value):
-        return tr("na", lang), "signal-warn"
-    if value <= 50:
-        return tr("risk_low", lang), "signal-good"
-    if value <= 70:
-        return tr("risk_moderate", lang), "signal-warn"
-    return tr("risk_high", lang), "signal-risk"
-
-
-def inject_css() -> None:
-    st.markdown(
-        """
-<style>
-    :root {
-        --ink-900: #0f172a;
-        --ink-700: #334155;
-        --surface: #ffffff;
-        --line: #dbe4ef;
-        --brand-1: #0f766e;
-        --brand-2: #0b3c5d;
-        --brand-3: #c2410c;
-    }
-    .stApp {
-        background:
-            radial-gradient(circle at 2% 2%, #e0f2fe 0, transparent 36%),
-            radial-gradient(circle at 94% 7%, #ffedd5 0, transparent 35%),
-            #f1f5f9;
-        font-family: "Segoe UI", "Segoe UI Variable", "Helvetica Neue", Arial, sans-serif;
-        color: var(--ink-900);
-    }
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1.8rem;
-        max-width: 1380px;
-    }
-    .hero-wrap {
-        background: linear-gradient(120deg, var(--brand-2) 0%, var(--brand-1) 52%, #0ea5e9 100%);
-        border-radius: 20px;
-        padding: 1.25rem 1.35rem;
-        margin-bottom: 0.85rem;
-        color: #f8fafc;
-        box-shadow: 0 14px 30px rgba(11, 60, 93, 0.24);
-    }
-    .hero-title {
-        margin: 0;
-        font-size: 2.05rem;
-        line-height: 1.2;
-        font-weight: 760;
-        font-family: "Segoe UI", "Segoe UI Variable", "Helvetica Neue", Arial, sans-serif;
-        letter-spacing: -0.02em;
-    }
-    .hero-subtitle {
-        margin: 0.45rem 0 0 0;
-        font-size: 0.96rem;
-        color: #e2e8f0;
-    }
-    .hero-badges {
-        margin-top: 0.65rem;
-        display: flex;
-        gap: 0.45rem;
-        flex-wrap: wrap;
-    }
-    .hero-badge {
-        border: 1px solid rgba(255, 255, 255, 0.32);
-        border-radius: 999px;
-        padding: 0.2rem 0.58rem;
-        font-size: 0.74rem;
-        color: #ecfeff;
-        background: rgba(255, 255, 255, 0.1);
-    }
-    [data-testid="stSidebar"] {
-        border-right: 1px solid var(--line);
-    }
-    [data-testid="stSidebar"] > div:first-child {
-        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-    [data-testid="stSidebar"] * {
-        color: var(--ink-900) !important;
-    }
-    [data-testid="stSidebar"] .stFileUploader * {
-        color: #f8fafc !important;
-    }
-    [data-testid="stSidebar"] div[data-baseweb="select"] * {
-        color: #f8fafc !important;
-    }
-    [data-testid="stSidebar"] div[data-baseweb="select"] {
-        background-color: #0f172a !important;
-        border-radius: 8px;
-    }
-    [data-testid="stSidebar"] input,
-    [data-testid="stSidebar"] textarea {
-        color: #f8fafc !important;
-        background-color: #0f172a !important;
-    }
-    [data-testid="stMetric"] {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0.48rem 0.75rem;
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-    }
-    [data-testid="stMetricLabel"] {
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        font-size: 0.72rem;
-        font-weight: 700;
-        color: #64748b !important;
-    }
-    [data-testid="stMetricValue"] {
-        color: var(--ink-900) !important;
-        font-weight: 760 !important;
-    }
-    [data-testid="stMetricDelta"] {
-        color: #0f766e !important;
-    }
-    [data-testid="stMarkdownContainer"] p,
-    [data-testid="stMarkdownContainer"] li,
-    [data-testid="stMarkdownContainer"] span {
-        color: var(--ink-900);
-    }
-    .section-card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0.78rem 0.94rem;
-        margin-bottom: 0.8rem;
-    }
-    .proof-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.6rem;
-        margin: 0.1rem 0 0.8rem 0;
-    }
-    .proof-card {
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0.55rem 0.7rem;
-    }
-    .proof-k {
-        font-size: 0.74rem;
-        color: var(--ink-700);
-        margin: 0;
-    }
-    .proof-v {
-        font-size: 1.04rem;
-        margin: 0.1rem 0 0 0;
-        color: var(--ink-900);
-        font-weight: 760;
-    }
-    .snapshot-list {
-        margin: 0;
-        padding-left: 1.1rem;
-        color: var(--ink-900);
-    }
-    .snapshot-list li {
-        margin-bottom: 0.25rem;
-    }
-    .signal-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.7rem;
-        margin-top: 0.4rem;
-    }
-    .signal-card {
-        border-radius: 10px;
-        padding: 0.72rem 0.8rem;
-        border: 1px solid transparent;
-    }
-    .signal-title {
-        font-size: 0.78rem;
-        color: var(--ink-700);
-        margin-bottom: 0.2rem;
-    }
-    .signal-value {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--ink-900);
-    }
-    .signal-good { background: #ecfdf5; border-color: #86efac; }
-    .signal-warn { background: #fffbeb; border-color: #fde68a; }
-    .signal-risk { background: #fef2f2; border-color: #fca5a5; }
-    .lead-strip {
-        background: linear-gradient(90deg, #0b3c5d 0%, #0f766e 50%, #c2410c 100%);
-        border-radius: 14px;
-        padding: 0.8rem 0.95rem;
-        margin: 0.85rem 0;
-        color: #f8fafc;
-        display: grid;
-        grid-template-columns: 1.6fr 1fr 1fr;
-        gap: 0.75rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    .lead-title {
-        margin: 0;
-        font-weight: 780;
-        font-size: 1.02rem;
-    }
-    .lead-txt {
-        margin: 0.2rem 0 0 0;
-        font-size: 0.84rem;
-        color: #e2e8f0;
-    }
-    .lead-k {
-        margin: 0;
-        font-size: 0.72rem;
-        color: #dbeafe;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .lead-v {
-        margin: 0.1rem 0 0 0;
-        font-size: 1.08rem;
-        font-weight: 760;
-    }
-    [data-baseweb="tab-list"] {
-        gap: 0.35rem;
-    }
-    [data-baseweb="tab"] {
-        border-radius: 10px;
-        background: #e2e8f0;
-        border: 1px solid #d1d9e6;
-        color: var(--ink-700);
-        font-weight: 650;
-        padding: 0.4rem 0.65rem;
-    }
-    [aria-selected="true"][data-baseweb="tab"] {
-        background: #0b3c5d;
-        border-color: #0b3c5d;
-        color: #f8fafc;
-    }
-    @media (max-width: 980px) {
-        .signal-grid,
-        .proof-grid,
-        .lead-strip {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-""",
-        unsafe_allow_html=True,
-    )
-
-
-def render_header(origem: str | None, dados_reais: bool, lang: str) -> None:
-    fonte = origem if origem else tr("simulated_data", lang)
-    tipo = tr("real_data", lang) if dados_reais else tr("demo_data", lang)
-    st.markdown(
-        f"""
-<div class='hero-wrap'>
-    <h1 class='hero-title'>{tr('hero_title', lang)}</h1>
-    <p class='hero-subtitle'>{tr('hero_subtitle', lang)}</p>
-    <p class='hero-subtitle'><strong>{tr('source', lang)}:</strong> {fonte} | <strong>{tr('type', lang)}:</strong> {tipo} | <strong>{tr('updated', lang)}:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-    <div class='hero-badges'>
-        <span class='hero-badge'>{tr('badge_1', lang)}</span>
-        <span class='hero-badge'>{tr('badge_2', lang)}</span>
-        <span class='hero-badge'>{tr('badge_3', lang)}</span>
-    </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-
-def render_proof_strip(
-    periodos: int,
-    dimensoes: int,
-    top3_share: float | None,
-    crescimento_medio: float,
-    lang: str,
-) -> None:
-    concentracao = f"{top3_share:.1f}%" if top3_share is not None else tr("na", lang)
-    crescimento = f"{crescimento_medio:.1f}%" if pd.notna(crescimento_medio) else tr("na", lang)
-    st.markdown(
-        f"""
-<div class='proof-grid'>
-    <div class='proof-card'><p class='proof-k'>{tr('proof_scale', lang)}</p><p class='proof-v'>{periodos} {tr('periods', lang)}</p></div>
-    <div class='proof-card'><p class='proof-k'>{tr('proof_dims', lang)}</p><p class='proof-v'>{dimensoes}</p></div>
-    <div class='proof-card'><p class='proof-k'>{tr('proof_top3', lang)}</p><p class='proof-v'>{concentracao}</p></div>
-    <div class='proof-card'><p class='proof-k'>{tr('proof_growth', lang)}</p><p class='proof-v'>{crescimento}</p></div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-
-def render_lead_strip(
-    receita_total: float,
-    crescimento_medio: float,
-    top3_share: float | None,
-    dados_reais: bool,
-    lang: str,
-) -> None:
-    crescimento = f"{crescimento_medio:.1f}%" if pd.notna(crescimento_medio) else tr("na", lang)
-    concentracao = f"{top3_share:.1f}%" if top3_share is not None else tr("na", lang)
-    origem_label = tr("dataset_real", lang) if dados_reais else tr("dataset_demo", lang)
-    st.markdown(
-        f"""
-<div class='lead-strip'>
-    <div>
-        <p class='lead-title'>{tr('lead_title', lang)}</p>
-        <p class='lead-txt'>{tr('lead_text', lang)}</p>
-    </div>
-    <div>
-        <p class='lead-k'>{tr('lead_revenue', lang)}</p>
-        <p class='lead-v'>{format_currency(receita_total, '$')}</p>
-        <p class='lead-txt'>{origem_label}</p>
-    </div>
-    <div>
-        <p class='lead-k'>{tr('lead_headline', lang)}</p>
-        <p class='lead-v'>Growth {crescimento}</p>
-        <p class='lead-txt'>Top 3 share {concentracao}</p>
-    </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-
-def format_period_label(value: object) -> str:
-    try:
-        parsed = pd.to_datetime(value, errors="coerce")
-        if pd.notna(parsed):
-            return parsed.strftime("%Y-%m")
-    except Exception:
-        pass
-    return str(value)
-
-
-def build_executive_insights(
-    receita_total: float,
-    crescimento_medio: float,
-    mes_pico: str,
-    top3_share: float | None,
-    melhor_periodo: str,
-    pior_periodo: str,
-    lang: str,
-) -> list[str]:
-    insights = [
-        tr("insight_revenue", lang, value=format_currency(receita_total, "$")),
-        tr("insight_peak", lang, value=mes_pico),
-    ]
-
-    if pd.notna(crescimento_medio):
-        direcao = tr("expansion", lang) if crescimento_medio >= 0 else tr("retraction", lang)
-        insights.append(tr("insight_growth", lang, direction=direcao, value=crescimento_medio))
-
-    if top3_share is not None:
-        insights.append(tr("insight_top3", lang, value=top3_share))
-
-    insights.append(tr("insight_range", lang, best=melhor_periodo, worst=pior_periodo))
-    return insights
-
-
 st.set_page_config(
     page_title=APP_TITLE,
     page_icon=APP_ICON,
@@ -1046,7 +430,7 @@ with st.sidebar:
 
 
 try:
-    render_header(origem, dados_reais, lang)
+    render_header(origem, dados_reais, lang, tr)
 
     df_analise = df.copy()
     df_analise[coluna_data] = safe_to_datetime(df_analise[coluna_data])
@@ -1110,17 +494,18 @@ try:
         melhor_periodo=melhor_periodo_exec,
         pior_periodo=pior_periodo_exec,
         lang=lang,
+        tr=tr,
     )
 
-    crescimento_label, crescimento_class = classify_growth_signal(crescimento_medio, lang)
-    concentracao_label, concentracao_class = classify_concentration_signal(top3_share, lang)
+    crescimento_label, crescimento_class = classify_growth_signal(crescimento_medio, lang, tr)
+    concentracao_label, concentracao_class = classify_concentration_signal(top3_share, lang, tr)
 
     ult_crescimento = (
         float(resultado["crescimento_%"].iloc[-1])
         if len(resultado) and pd.notna(resultado["crescimento_%"].iloc[-1])
         else np.nan
     )
-    momentum_label, momentum_class = classify_growth_signal(ult_crescimento, lang)
+    momentum_label, momentum_class = classify_growth_signal(ult_crescimento, lang, tr)
 
     k1, k2, k3, k4 = st.columns(4)
     with k1:
@@ -1138,6 +523,7 @@ try:
         top3_share=top3_share,
         crescimento_medio=crescimento_medio,
         lang=lang,
+        tr=tr,
     )
     render_lead_strip(
         receita_total=receita_total,
@@ -1145,6 +531,8 @@ try:
         top3_share=top3_share,
         dados_reais=dados_reais,
         lang=lang,
+        tr=tr,
+        format_currency=format_currency,
     )
 
     st.markdown(
@@ -1270,7 +658,7 @@ try:
         st.caption(tr("cap_pareto", lang))
         if dim_concentracao and dim_concentracao in df_analise.columns:
             pareto_df = compute_pareto(df_analise, dim_concentracao, coluna_valor)
-            fig_pareto = build_pareto_chart(pareto_df, dim_concentracao, top_n=top_n_pareto, lang=lang)
+            fig_pareto = build_pareto_chart(pareto_df, dim_concentracao, top_n=top_n_pareto)
             st.plotly_chart(fig_pareto, width="stretch")
 
             if top3_labels:
