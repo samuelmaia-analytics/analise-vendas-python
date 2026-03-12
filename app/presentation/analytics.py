@@ -7,7 +7,7 @@ from typing import Callable
 
 from src.sales_analytics.metrics import compute_growth_over_period
 
-from app.ui.data import format_currency, safe_to_datetime, safe_to_numeric
+from app.presentation.data import format_currency, safe_to_datetime, safe_to_numeric
 
 
 def compute_yoy(

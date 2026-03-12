@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from app.ui.analytics import (
+from app.presentation.analytics import (
     build_executive_insights,
     classify_concentration_signal,
     classify_growth_signal,
@@ -11,7 +11,7 @@ from app.ui.analytics import (
     compute_yoy,
     format_period_label,
 )
-from app.ui.i18n import tr
+from app.presentation.i18n import tr
 
 
 def test_compute_pareto_sorts_and_accumulates_share():

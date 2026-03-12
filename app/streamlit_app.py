@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from app.ui.analytics import (
+from app.presentation.analytics import (
     build_executive_insights,
     calcular_crescimento_cached,
     classify_concentration_signal,
@@ -15,7 +15,7 @@ from app.ui.analytics import (
     compute_yoy,
     format_period_label,
 )
-from app.ui.components import (
+from app.presentation.components import (
     APP_ICON,
     APP_TITLE,
     COLOR_GROWTH,
@@ -29,7 +29,7 @@ from app.ui.components import (
     render_lead_strip,
     render_proof_strip,
 )
-from app.ui.data import (
+from app.presentation.data import (
     carregar_csv_upload,
     carregar_dados,
     detect_date_columns,
@@ -41,7 +41,7 @@ from app.ui.data import (
     suggest_dimension_columns,
     validate_upload_frame,
 )
-from app.ui.i18n import LANG_OPTIONS, tr
+from app.presentation.i18n import LANG_OPTIONS, tr
 from src.sales_analytics.settings import get_app_settings
 
 SETTINGS = get_app_settings()

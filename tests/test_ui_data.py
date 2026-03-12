@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from app.ui.data import (
+from app.presentation.data import (
     carregar_csv_upload,
     detect_date_columns,
     detect_value_columns,

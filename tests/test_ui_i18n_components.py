@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.ui.components import build_pareto_chart
-from app.ui.i18n import LANG_OPTIONS, tr
+from app.presentation.components import build_pareto_chart
+from app.presentation.i18n import LANG_OPTIONS, tr
 
 
 def test_tr_uses_selected_language_and_fallbacks():
