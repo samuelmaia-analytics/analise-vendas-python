@@ -170,6 +170,19 @@ def build_revenue_chart(periodic_sales: pd.DataFrame, x_col: str) -> go.Figure:
     return fig
 
 
+def build_revenue_chart_localized(
+    periodic_sales: pd.DataFrame,
+    x_col: str,
+    *,
+    title: str,
+    xaxis_title: str,
+    yaxis_title: str,
+) -> go.Figure:
+    fig = build_revenue_chart(periodic_sales, x_col)
+    fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
+    return fig
+
+
 def build_growth_chart(periodic_sales: pd.DataFrame, x_col: str) -> go.Figure:
     fig = px.bar(
         periodic_sales.dropna(subset=["crescimento_%"]),
@@ -187,6 +200,19 @@ def build_growth_chart(periodic_sales: pd.DataFrame, x_col: str) -> go.Figure:
         font=dict(family=PLOT_FONT),
         margin=dict(l=10, r=10, t=45, b=10),
     )
+    return fig
+
+
+def build_growth_chart_localized(
+    periodic_sales: pd.DataFrame,
+    x_col: str,
+    *,
+    title: str,
+    xaxis_title: str,
+    yaxis_title: str,
+) -> go.Figure:
+    fig = build_growth_chart(periodic_sales, x_col)
+    fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
     return fig
 
 
@@ -223,5 +249,27 @@ def build_yoy_chart(yoy_sales: pd.DataFrame) -> go.Figure:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         font=dict(family=PLOT_FONT),
         margin=dict(l=30, r=30, t=30, b=30),
+    )
+    return fig
+
+
+def build_yoy_chart_localized(
+    yoy_sales: pd.DataFrame,
+    *,
+    total_label: str,
+    yoy_label: str,
+    xaxis_title: str,
+    yaxis_title: str,
+    yaxis2_title: str,
+) -> go.Figure:
+    fig = build_yoy_chart(yoy_sales)
+    if len(fig.data) >= 1:
+        fig.data[0].name = total_label
+    if len(fig.data) >= 2:
+        fig.data[1].name = yoy_label
+    fig.update_layout(
+        xaxis_title=xaxis_title,
+        yaxis=dict(title=yaxis_title),
+        yaxis2=dict(title=yaxis2_title, overlaying="y", side="right"),
     )
     return fig

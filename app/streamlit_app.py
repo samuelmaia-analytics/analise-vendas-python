@@ -9,9 +9,9 @@ import streamlit as st
 from app.presentation.analytics import (
     build_executive_insights,
     build_recommendations,
-    build_growth_chart,
-    build_revenue_chart,
-    build_yoy_chart,
+    build_growth_chart_localized,
+    build_revenue_chart_localized,
+    build_yoy_chart_localized,
     cache_dataframe,
     classify_concentration_signal,
     classify_growth_signal,
@@ -55,18 +55,18 @@ st.set_page_config(
 inject_css()
 
 
-def render_quality_table(quality_report: object) -> None:
+def render_quality_table(quality_report: object, *, lang: str) -> None:
     quality_df = pd.DataFrame(
         [
-            {"Indicador": "Linhas totais", "Valor": quality_report.total_rows},
-            {"Indicador": "Linhas validas", "Valor": quality_report.valid_rows},
-            {"Indicador": "Linhas duplicadas", "Valor": quality_report.duplicate_rows},
-            {"Indicador": "Datas nulas", "Valor": quality_report.null_date_rows},
-            {"Indicador": "Datas invalidas", "Valor": quality_report.invalid_date_rows},
-            {"Indicador": "Vendas nulas", "Valor": quality_report.null_sales_rows},
-            {"Indicador": "Vendas invalidas", "Valor": quality_report.invalid_sales_rows},
-            {"Indicador": "Vendas negativas", "Valor": quality_report.negative_sales_rows},
-            {"Indicador": "Vendas zeradas", "Valor": quality_report.zero_sales_rows},
+            {tr("quality_indicator", lang): tr("quality_total_rows", lang), tr("quality_value", lang): quality_report.total_rows},
+            {tr("quality_indicator", lang): tr("quality_valid_rows", lang), tr("quality_value", lang): quality_report.valid_rows},
+            {tr("quality_indicator", lang): tr("quality_duplicate_rows", lang), tr("quality_value", lang): quality_report.duplicate_rows},
+            {tr("quality_indicator", lang): tr("quality_null_dates", lang), tr("quality_value", lang): quality_report.null_date_rows},
+            {tr("quality_indicator", lang): tr("quality_invalid_dates", lang), tr("quality_value", lang): quality_report.invalid_date_rows},
+            {tr("quality_indicator", lang): tr("quality_null_sales", lang), tr("quality_value", lang): quality_report.null_sales_rows},
+            {tr("quality_indicator", lang): tr("quality_invalid_sales", lang), tr("quality_value", lang): quality_report.invalid_sales_rows},
+            {tr("quality_indicator", lang): tr("quality_negative_sales", lang), tr("quality_value", lang): quality_report.negative_sales_rows},
+            {tr("quality_indicator", lang): tr("quality_zero_sales", lang), tr("quality_value", lang): quality_report.zero_sales_rows},
         ]
     )
     st.dataframe(quality_df, width="stretch", hide_index=True)
@@ -75,7 +75,7 @@ def render_quality_table(quality_report: object) -> None:
         for warning in quality_report.warnings:
             st.warning(warning)
     else:
-        st.success("Nenhum alerta critico de qualidade encontrado.")
+        st.success(tr("no_critical_quality_alerts", lang))
 
 
 with st.sidebar:
@@ -228,7 +228,7 @@ try:
     with k2:
         st.metric(tr("avg_growth", lang), f"{crescimento_medio:.1f}%")
     with k3:
-        st.metric("Pedidos", f"{kpis.total_orders:,}")
+        st.metric(tr("orders", lang), f"{kpis.total_orders:,}")
     with k4:
         st.metric(tr("top3", lang), f"{top3_share:.1f}%" if top3_share is not None else tr("na", lang))
 
@@ -278,36 +278,54 @@ try:
     )
 
     tab_overview, tab_trend, tab_concentration, tab_yoy, tab_quality = st.tabs(
-        [tr("tabs_exec", lang), tr("tabs_growth", lang), tr("tabs_pareto", lang), tr("tabs_yoy", lang), "Qualidade e dados"]
+        [tr("tabs_exec", lang), tr("tabs_growth", lang), tr("tabs_pareto", lang), tr("tabs_yoy", lang), tr("tabs_quality", lang)]
     )
 
     with tab_overview:
-        st.caption("Primeiro a leitura executiva: tamanho da receita, crescimento e ponto de concentracao.")
+        st.caption(tr("overview_caption", lang))
         left_col, right_col = st.columns(2)
         with left_col:
-            st.plotly_chart(build_revenue_chart(periodic_sales, periodic_sales.columns[0]), width="stretch")
+            st.plotly_chart(
+                build_revenue_chart_localized(
+                    periodic_sales,
+                    periodic_sales.columns[0],
+                    title=tr("chart_revenue_title", lang),
+                    xaxis_title=tr("chart_period_label", lang),
+                    yaxis_title=tr("chart_revenue_axis", lang),
+                ),
+                width="stretch",
+            )
         with right_col:
-            st.plotly_chart(build_growth_chart(periodic_sales, periodic_sales.columns[0]), width="stretch")
+            st.plotly_chart(
+                build_growth_chart_localized(
+                    periodic_sales,
+                    periodic_sales.columns[0],
+                    title=tr("chart_growth_title", lang),
+                    xaxis_title=tr("chart_period_label", lang),
+                    yaxis_title=tr("chart_growth_axis", lang),
+                ),
+                width="stretch",
+            )
 
         summary_df = pd.DataFrame(
             [
-                {"Indicador": "Receita total", "Valor": format_currency(kpis.total_revenue, "$")},
-                {"Indicador": "Pedidos", "Valor": f"{kpis.total_orders:,}"},
-                {"Indicador": "Ticket medio", "Valor": format_currency(kpis.average_order_value, "$")},
-                {"Indicador": "Melhor periodo", "Valor": melhor_periodo_exec},
-                {"Indicador": "Pior periodo", "Valor": pior_periodo_exec},
+                {"Indicador": tr("summary_total_revenue", lang), "Valor": format_currency(kpis.total_revenue, "$")},
+                {"Indicador": tr("orders", lang), "Valor": f"{kpis.total_orders:,}"},
+                {"Indicador": tr("summary_average_order_value", lang), "Valor": format_currency(kpis.average_order_value, "$")},
+                {"Indicador": tr("summary_best_period", lang), "Valor": melhor_periodo_exec},
+                {"Indicador": tr("summary_worst_period", lang), "Valor": pior_periodo_exec},
             ]
         )
         st.dataframe(summary_df, width="stretch", hide_index=True)
 
         if recommendations:
-            st.markdown("#### Recomendacoes executivas")
+            st.markdown(f"#### {tr('executive_recommendations', lang)}")
             recommendations_df = pd.DataFrame(
                 [
                     {
-                        "Tema": item["title"],
-                        "Implicacao": item["implication"],
-                        "Acao sugerida": item["action"],
+                        tr("theme", lang): item["title"],
+                        tr("implication", lang): item["implication"],
+                        tr("suggested_action", lang): item["action"],
                     }
                     for item in recommendations
                 ]
@@ -315,7 +333,7 @@ try:
             st.dataframe(recommendations_df, width="stretch", hide_index=True)
 
     with tab_trend:
-        st.caption("Depois a leitura temporal: performance recorrente, variacao recente e estabilidade.")
+        st.caption(tr("trend_caption", lang))
         c1, c2, c3, c4 = st.columns(4)
         latest_revenue = float(periodic_sales["total_vendas"].iloc[-1]) if len(periodic_sales) else np.nan
         growth_delta = (
@@ -347,9 +365,18 @@ try:
         st.dataframe(trend_table, width="stretch", hide_index=True)
 
     with tab_concentration:
-        st.caption("A concentracao mostra quanto da receita depende de poucas categorias, produtos ou clientes.")
+        st.caption(tr("concentration_caption", lang))
         if not pareto_sales.empty and dimension_col:
-            st.plotly_chart(build_pareto_chart(pareto_sales, dimension_col, top_n=top_n_pareto), width="stretch")
+            st.plotly_chart(
+                build_pareto_chart(
+                    pareto_sales,
+                    dimension_col,
+                    top_n=top_n_pareto,
+                    total_label=tr("chart_total", lang),
+                    cumulative_label=tr("chart_cumulative_pct", lang),
+                ),
+                width="stretch",
+            )
             show_df = pareto_sales.copy()
             show_df["total"] = show_df["total"].map(lambda value: format_currency(value, "$"))
             show_df["share_pct"] = show_df["share_pct"].map(lambda value: f"{value:.2f}%")
@@ -359,7 +386,7 @@ try:
             st.info(tr("pareto_enable", lang))
 
     with tab_yoy:
-        st.caption("Por fim, a comparacao YoY ajuda a separar crescimento estrutural de ruido pontual.")
+        st.caption(tr("yoy_caption", lang))
         yy1, yy2, yy3 = st.columns(3)
         total_ultimo = yoy_sales["total"].iloc[-1] if len(yoy_sales) else np.nan
         yoy_pct_last = yoy_sales["yoy_pct"].iloc[-1] if len(yoy_sales) else np.nan
@@ -372,7 +399,17 @@ try:
         with yy3:
             st.metric(tr("yoy_abs_last_month", lang), format_currency(yoy_abs_last, "$") if pd.notna(yoy_abs_last) else tr("na", lang))
 
-        st.plotly_chart(build_yoy_chart(yoy_sales), width="stretch")
+        st.plotly_chart(
+            build_yoy_chart_localized(
+                yoy_sales,
+                total_label=tr("chart_yoy_total", lang),
+                yoy_label=tr("chart_yoy_pct", lang),
+                xaxis_title=tr("chart_month_label", lang),
+                yaxis_title=tr("chart_total_monthly", lang),
+                yaxis2_title=tr("chart_yoy_pct", lang),
+            ),
+            width="stretch",
+        )
         yoy_view = yoy_sales.rename(columns={yoy_sales.columns[0]: "Periodo"}).copy() if not yoy_sales.empty else yoy_sales
         if not yoy_view.empty:
             yoy_view["Periodo"] = yoy_view["Periodo"].map(format_period_label)
@@ -384,8 +421,8 @@ try:
             st.info(tr("yoy_no_history", lang))
 
     with tab_quality:
-        st.caption("Esta camada deixa explicito o quanto a analise depende de limpeza e quais ajustes foram feitos nos dados.")
-        render_quality_table(analysis.quality_report)
+        st.caption(tr("quality_caption", lang))
+        render_quality_table(analysis.quality_report, lang=lang)
         st.dataframe(cleaned_data.head(20), width="stretch", hide_index=True)
 
         csv_data = periodic_sales.to_csv(index=False)

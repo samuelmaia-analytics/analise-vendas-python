@@ -19,14 +19,21 @@ COLOR_YOY = "#1d4ed8"
 PLOT_FONT = "Segoe UI, Segoe UI Variable, Helvetica Neue, Arial, sans-serif"
 
 
-def build_pareto_chart(pareto_df: pd.DataFrame, dim_col: str, top_n: int = 15) -> go.Figure:
+def build_pareto_chart(
+    pareto_df: pd.DataFrame,
+    dim_col: str,
+    top_n: int = 15,
+    *,
+    total_label: str = "Total",
+    cumulative_label: str = "% acumulado",
+) -> go.Figure:
     plot_df = pareto_df.head(top_n).copy()
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
             x=plot_df[dim_col].astype(str),
             y=plot_df["total"],
-            name="Total",
+            name=total_label,
             marker_color=COLOR_PARETO_BAR,
         )
     )
@@ -34,7 +41,7 @@ def build_pareto_chart(pareto_df: pd.DataFrame, dim_col: str, top_n: int = 15) -
         go.Scatter(
             x=plot_df[dim_col].astype(str),
             y=plot_df["cum_share_pct"],
-            name="% acumulado",
+            name=cumulative_label,
             mode="lines+markers",
             yaxis="y2",
             line=dict(color=COLOR_PARETO_LINE, width=2.5),
@@ -44,8 +51,8 @@ def build_pareto_chart(pareto_df: pd.DataFrame, dim_col: str, top_n: int = 15) -
         template="plotly_white",
         height=420,
         xaxis_title=dim_col,
-        yaxis=dict(title="Total", showgrid=True),
-        yaxis2=dict(title="% acumulado", overlaying="y", side="right", range=[0, 100]),
+        yaxis=dict(title=total_label, showgrid=True),
+        yaxis2=dict(title=cumulative_label, overlaying="y", side="right", range=[0, 100]),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         font=dict(family=PLOT_FONT),
         margin=dict(l=30, r=30, t=30, b=30),
@@ -160,8 +167,8 @@ def render_lead_strip(
     </div>
     <div>
         <p class='lead-k'>{tr('lead_headline', lang)}</p>
-        <p class='lead-v'>Growth {crescimento}</p>
-        <p class='lead-txt'>Top 3 share {concentracao}</p>
+        <p class='lead-v'>{tr('lead_growth', lang)} {crescimento}</p>
+        <p class='lead-txt'>{tr('lead_top3_share', lang)} {concentracao}</p>
     </div>
 </div>
 """,

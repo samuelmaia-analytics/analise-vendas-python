@@ -112,7 +112,7 @@ sales-analytics build-artifacts
 
 Saida executiva gerada para compartilhamento:
 
-- [reports/executive_summary.csv](C:\Users\samue\PycharmProjects\analise-vendas-python\reports\executive_summary.csv)
+- [reports/executive_summary.csv](reports/executive_summary.csv)
 
 ## Testes e qualidade
 
@@ -123,14 +123,6 @@ mypy src
 ```
 
 Cobertura atual da suite: `90%`.
-
-## Diferenciais para recrutadores tecnicos
-
-- contexto de negocio explicito no README e no dashboard
-- separacao clara de responsabilidades no codigo
-- validacao de qualidade antes do calculo de indicadores
-- KPIs centralizados e testados
-- entrada principal simples e facil de demonstrar
 
 ## Fonte de dados
 

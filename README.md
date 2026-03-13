@@ -111,7 +111,7 @@ sales-analytics build-artifacts
 
 Shareable output artifact:
 
-- [reports/executive_summary.csv](C:\Users\samue\PycharmProjects\analise-vendas-python\reports\executive_summary.csv)
+- [reports/executive_summary.csv](reports/executive_summary.csv)
 
 ## Quality checks
 
@@ -122,14 +122,6 @@ mypy src
 ```
 
 Current automated coverage: `90%`.
-
-## Why this reads as more senior
-
-- business context is explicit
-- metrics are centralized instead of scattered across the UI
-- data quality is visible, not implicit
-- the main entrypoint stays clean
-- tests support the core analytical logic
 
 ## Data source
 
