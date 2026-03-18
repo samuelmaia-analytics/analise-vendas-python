@@ -56,7 +56,7 @@ Gerado em runtime, não versionado por padrão:
 - `data/state/` para manifestos e estado de execução
 - arquivos dentro de `data/processed/` e `reports/` são sobrescritos a cada reprocessamento
 
-Fluxo oficial:
+## Fluxo oficial
 
 1. Resolver a origem da base e calcular fingerprint SHA-256.
 2. Validar schema e qualidade.
@@ -135,6 +135,29 @@ Abrir a aplicação:
 streamlit run app.py
 ```
 
+## Configuração
+
+As principais variáveis de ambiente são:
+
+- `APP_ENV`
+- `PIPELINE_NAME`
+- `LOG_LEVEL`
+- `RAW_DATA_DIR`
+- `PROCESSED_DATA_DIR`
+- `REPORTS_DIR`
+- `PIPELINE_STATE_DIR`
+- `ANALYSIS_DATE_COL`
+- `ANALYSIS_SALES_COL`
+- `ANALYSIS_DIMENSION_COL`
+- `ANALYSIS_PERIOD`
+- `ENABLE_PIPELINE_SNAPSHOTS`
+- `SNAPSHOT_RETENTION_RUNS`
+- `SNAPSHOT_RETENTION_DAYS`
+- `DATA_FRESHNESS_MAX_AGE_DAYS`
+- `DATA_FRESHNESS_REFERENCE_DATE`
+
+Veja `.env.example` para os valores padrão.
+
 ## Qualidade
 
 ```bash
@@ -145,7 +168,7 @@ mypy src
 pytest
 ```
 
-O projeto também possui `pre-commit` e CI no GitHub Actions com lint, tipagem, testes e validação de build.
+O projeto também possui `pre-commit` e CI no GitHub Actions com lint, tipagem, testes, build do pacote, build do container e smoke test da CLI no container.
 
 ## Decisões técnicas
 
@@ -188,7 +211,7 @@ docker run --rm -p 8501:8501 -v "$(pwd)/data:/app/data" -v "$(pwd)/reports:/app/
 
 ## Roadmap
 
-- snapshots históricos por execução
-- assertions de freshness
-- containerização
+- snapshots históricos por execução com política de retenção mais avançada
+- assertions de freshness mais ricas
+- observabilidade com métricas e alertas
 - modelagem warehouse/dbt-like para consumo downstream
