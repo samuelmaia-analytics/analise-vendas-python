@@ -15,7 +15,7 @@ def test_processed_schema_flags_missing_columns():
     is_valid, missing = validate_processed_schema("dim_tempo.csv", df)
 
     assert not is_valid
-    assert missing == ["ANO", "MES", "MES_NOME"]
+    assert missing == ["ANO", "MES", "MES_NOME", "TRIMESTRE"]
 
 
 def test_processed_schema_rejects_unknown_artifact():

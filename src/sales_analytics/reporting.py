@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from .config import get_project_paths
+from .io_utils import atomic_write_csv
 from .logging_utils import get_logger
 from .pipeline import SalesAnalysisResult
 
@@ -36,7 +37,6 @@ def export_executive_summary(
     output_path: Path | None = None,
 ) -> Path:
     target = output_path or (get_project_paths().reports_dir / "executive_summary.csv")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    build_executive_summary_frame(result).to_csv(target, index=False, encoding="utf-8")
+    atomic_write_csv(build_executive_summary_frame(result), target)
     LOGGER.info("Resumo executivo exportado para %s", target)
     return target

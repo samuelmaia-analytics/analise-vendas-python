@@ -35,6 +35,12 @@ jobs:
       - name: Run lint
         run: ruff check .
 
+      - name: Run Black check
+        run: black --check .
+
+      - name: Run import order check
+        run: isort . --check-only
+
       - name: Run type check
         run: mypy src
 
@@ -49,3 +55,19 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - name: Validate package build
+        run: python -m build
+
+  container:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -t sales-analytics-portfolio .
+
+      - name: Smoke test CLI in container
+        run: docker run --rm sales-analytics-portfolio sales-analytics summary

@@ -35,3 +35,23 @@ tasks:
     desc: Run Streamlit app
     cmds:
       - streamlit run app.py
+
+  run-pipeline:
+    desc: Run the official batch pipeline
+    cmds:
+      - sales-analytics run-pipeline
+
+  data-dictionary:
+    desc: Generate the markdown data dictionary from data contracts
+    cmds:
+      - sales-analytics generate-data-dictionary
+
+  docker-build:
+    desc: Build the project container image
+    cmds:
+      - docker build -t sales-analytics-portfolio .
+
+  docker-smoke-cli:
+    desc: Run a CLI smoke test inside the container
+    cmds:
+      - docker run --rm sales-analytics-portfolio sales-analytics summary

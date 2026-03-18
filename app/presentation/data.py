@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import csv as csvlib
 import os
-from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+from src.sales_analytics.csv_loader import load_csv_from_bytes
 
 
 def format_currency(value: float, symbol: str = "$") -> str:
@@ -140,53 +140,10 @@ def carregar_dados() -> tuple[pd.DataFrame, bool, str | None]:
 
 
 def carregar_csv_upload(file_bytes: bytes) -> pd.DataFrame:
-    encodings = ["utf-8-sig", "utf-8", "ISO-8859-1", "cp1252"]
-    separators = [",", ";", "\t", "|"]
-    sample = file_bytes[:200_000]
-    last_error: Exception | None = None
-
-    for encoding in encodings:
-        try:
-            sample_text = sample.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-
-        try:
-            sep = csvlib.Sniffer().sniff(sample_text, delimiters="".join(separators)).delimiter
-        except csvlib.Error:
-            sep = max(separators, key=sample_text.count)
-            if sample_text.count(sep) == 0:
-                sep = ","
-
-        try:
-            parsed = pd.read_csv(
-                BytesIO(file_bytes),
-                encoding=encoding,
-                sep=sep,
-                low_memory=False,
-                on_bad_lines="skip",
-            )
-            if parsed.shape[1] >= 2:
-                return parsed
-        except Exception as exc:  # noqa: PERF203
-            last_error = exc
-
-    for encoding in encodings:
-        for sep in separators:
-            try:
-                parsed = pd.read_csv(
-                    BytesIO(file_bytes),
-                    encoding=encoding,
-                    sep=sep,
-                    low_memory=False,
-                    on_bad_lines="skip",
-                )
-                if parsed.shape[1] >= 2:
-                    return parsed
-            except Exception as exc:  # noqa: PERF203
-                last_error = exc
-
-    raise ValueError(f"Nao foi possivel ler o CSV enviado. Erro: {last_error}")
+    try:
+        return load_csv_from_bytes(file_bytes).dataframe
+    except ValueError as exc:
+        raise ValueError(f"Nao foi possivel ler o CSV enviado. Erro: {exc}") from exc
 
 
 def validate_upload_frame(df: pd.DataFrame, *, max_rows: int, max_columns: int) -> tuple[bool, str | None]:

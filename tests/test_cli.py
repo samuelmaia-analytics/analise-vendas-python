@@ -87,6 +87,8 @@ def test_cli_build_artifacts_command_writes_output(
     assert exit_code == 0
     assert "fato_vendas.csv" in output
     assert "dim_tempo.csv" in output
+    assert "dim_produtos.csv" in output
+    assert "dim_clientes.csv" in output
     assert (tmp_path / "fato_vendas.csv").exists()
     assert (tmp_path / "dim_tempo.csv").exists()
 
@@ -107,6 +109,53 @@ def test_cli_export_summary_command_writes_report(
     output = capsys.readouterr().out
     assert exit_code == 0
     assert "executive_summary.csv" in output
+    assert output_file.exists()
+
+
+def test_cli_run_pipeline_command_writes_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "sales-analytics",
+            "run-pipeline",
+            "--output-dir",
+            str(tmp_path / "processed"),
+            "--reports-dir",
+            str(tmp_path / "reports"),
+            "--state-dir",
+            str(tmp_path / "state"),
+        ],
+    )
+
+    exit_code = cli.main()
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "run_id" in output
+    assert "pipeline_manifest.json" in output
+    assert (tmp_path / "state" / "pipeline_manifest.json").exists()
+
+
+def test_cli_generate_data_dictionary_command_writes_markdown(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+):
+    output_file = tmp_path / "data_dictionary.md"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["sales-analytics", "generate-data-dictionary", "--output", str(output_file)],
+    )
+
+    exit_code = cli.main()
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "data_dictionary.md" in output
     assert output_file.exists()
 
 

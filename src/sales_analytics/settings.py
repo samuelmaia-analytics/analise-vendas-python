@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from .config import project_root
+
 
 @dataclass(frozen=True)
 class AppSettings:
@@ -13,6 +15,7 @@ class AppSettings:
 
 
 def _read_positive_int(env_name: str, default: int) -> int:
+    project_root()
     raw = os.getenv(env_name)
     if raw is None or raw == "":
         return default

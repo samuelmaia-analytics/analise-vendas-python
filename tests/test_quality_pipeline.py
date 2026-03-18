@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pandas as pd
 import pytest
 
@@ -23,6 +25,28 @@ def test_validate_sales_data_flags_invalid_rows_and_missing_columns():
     assert report.invalid_date_rows == 1
     assert report.invalid_sales_rows == 1
     assert report.negative_sales_rows == 1
+
+
+def test_validate_sales_data_computes_freshness_when_reference_is_provided():
+    df = pd.DataFrame(
+        {
+            "ORDERDATE": ["2024-01-01", "2024-01-02"],
+            "SALES": [100, 150],
+        }
+    )
+
+    report = validate_sales_data(
+        df,
+        date_col="ORDERDATE",
+        sales_col="SALES",
+        freshness_reference_date=date(2024, 1, 10),
+        freshness_max_age_days=5,
+    )
+
+    assert report.freshest_date == "2024-01-02"
+    assert report.oldest_date == "2024-01-01"
+    assert report.staleness_days == 8
+    assert report.freshness_status == "stale"
 
 
 def test_run_sales_analysis_returns_centralized_outputs():

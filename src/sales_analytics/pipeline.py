@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 import pandas as pd
 
@@ -35,6 +36,8 @@ def run_sales_analysis(
     sales_col: str = "SALES",
     dimension_col: str | None = "PRODUCTLINE",
     period: str = "M",
+    freshness_reference_date: date | None = None,
+    freshness_max_age_days: int | None = None,
 ) -> SalesAnalysisResult:
     LOGGER.info(
         "Iniciando analise de vendas | linhas=%s | date_col=%s | sales_col=%s | dimension_col=%s | period=%s",
@@ -50,6 +53,8 @@ def run_sales_analysis(
         date_col=date_col,
         sales_col=sales_col,
         required_columns={dimension_col} if dimension_col else None,
+        freshness_reference_date=freshness_reference_date,
+        freshness_max_age_days=freshness_max_age_days,
     )
     cleaned_data = prepare_sales_data(
         df,
