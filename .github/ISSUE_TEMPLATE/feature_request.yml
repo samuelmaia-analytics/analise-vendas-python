@@ -1,20 +1,40 @@
 name: Feature request
-description: Propose a product or engineering improvement
+description: Propose a meaningful engineering or product improvement
 title: "[FEATURE] "
 labels: ["enhancement"]
 body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Change category
+      options:
+        - Pipeline reliability
+        - Data quality / contracts
+        - Analytics / reporting
+        - Developer experience
+        - Documentation
+        - Delivery / CI / container
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
       label: Problem statement
-      description: What pain point are we solving?
+      description: What limitation, pain point, or risk are we addressing?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
       label: Proposed solution
-      description: Describe the expected behavior and scope.
+      description: Describe the expected behavior, scope, and why this is the right level of complexity.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected impact
+      description: Explain technical impact, maintenance impact, and portfolio/recruiter impact.
     validations:
       required: true
   - type: textarea
@@ -22,3 +42,5 @@ body:
     attributes:
       label: Acceptance criteria
       description: Define objective completion criteria.
+    validations:
+      required: true

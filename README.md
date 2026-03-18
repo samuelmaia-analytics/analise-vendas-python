@@ -1,161 +1,137 @@
-# Sales Analytics Pipeline
+# Sales Analytics Data Platform
 
 [![CI](https://github.com/samuelmaia-analytics/analise-vendas-python/actions/workflows/ci.yml/badge.svg)](https://github.com/samuelmaia-analytics/analise-vendas-python/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![Batch](https://img.shields.io/badge/Mode-Batch%20%2B%20App-0f766e)
-![Coverage](https://img.shields.io/badge/Coverage-90%25-brightgreen)
+![Execution](https://img.shields.io/badge/Execution-Batch%20%2B%20App-0f766e)
+![Coverage](https://img.shields.io/badge/Coverage-91%25-brightgreen)
 
 Language: [Portuguese (Brazil)](README.pt-BR.md)
 
-This repository is a small but production-shaped analytics system. It ingests a raw sales CSV, enforces basic data quality gates, materializes curated outputs, publishes an executive summary, and exposes the same analytical core to a Streamlit app.
+This repository is a production-shaped analytics system built around a single sales dataset. It combines a deterministic batch pipeline, a curated analytical layer, a contract-driven data dictionary, and a Streamlit delivery surface that reuses the same domain logic as the pipeline.
 
-## Business value
+The goal is not to simulate a large platform with unnecessary complexity. The goal is to show sound engineering judgment: explicit contracts, reproducible execution, operational traceability, and documentation that matches the code.
 
-The pipeline answers the questions that matter in a sales review cycle:
+## Why this repository exists
 
-- how much revenue was generated and how concentrated it is
-- whether growth is improving or decelerating over time
-- which periods are strongest and weakest
-- whether the dataset is reliable enough to support decisions
+This project answers a small but realistic analytics use case:
 
-The repository is intentionally scoped to a single dataset, but the engineering patterns target real portfolio signal: reproducibility, traceability, separation of concerns, and testability.
+- transform raw sales events into decision-ready outputs
+- validate whether the dataset is reliable enough to consume
+- track revenue trend, concentration, and year-over-year movement
+- preserve a reproducible execution trail for reprocessing and review
 
-## Architecture
+It is intentionally scoped to local file processing, but the engineering patterns are the same ones expected in modern analytics teams: batch orchestration, curated outputs, environment-aware configuration, and delivery discipline.
+
+## What makes it senior
+
+- Single official execution path for the batch workflow
+- Clear separation between ingestion, validation, transformation, metrics, reporting, and presentation
+- Idempotent outputs with atomic writes
+- Run manifests, quality snapshots, KPI snapshots, and failure manifests
+- Contract-driven artifact generation and data dictionary generation
+- Snapshot history with retention policies by count and age
+- Containerized execution and CI validation of the same operational path
+
+## Repository structure
 
 ```text
 .
-|-- .github/workflows/          # CI pipelines
-|-- app/                        # Streamlit presentation layer
-|   |-- presentation/           # UI components, i18n, data adapters
-|   `-- streamlit_app.py        # dashboard entrypoint
-|-- assets/                     # static images for docs and portfolio material
+|-- .github/
+|   |-- ISSUE_TEMPLATE/            # issue intake for bugs and feature requests
+|   |-- pull_request_template.md   # PR review contract
+|   `-- workflows/                 # CI, release, and delivery automation
+|-- app/
+|   |-- presentation/              # Streamlit UI helpers, analytics formatting, i18n
+|   `-- streamlit_app.py           # dashboard entrypoint
+|-- assets/                        # static images used by docs and portfolio material
 |-- data/
-|   |-- raw/                    # versioned input dataset
-|   `-- processed/              # generated curated outputs
-|-- docs/                       # architecture and engineering notes
-|-- legacy/                     # backward-compatible source/output fallback
-|-- notebooks/                  # exploratory analysis kept isolated
-|-- reports/                    # generated executive and analytical extracts
-|-- scripts/                    # repository maintenance scripts
+|   |-- raw/                       # versioned source dataset
+|   `-- processed/                 # generated curated artifacts
+|-- docs/                          # architecture, data dictionary, and repository standards
+|-- legacy/                        # read-only compatibility fallback for old paths
+|-- notebooks/                     # isolated exploratory work, kept out of the runtime path
+|-- reports/                       # generated executive and analytical extracts
+|-- scripts/                       # thin wrappers and repository maintenance utilities
 |-- src/sales_analytics/
-|   |-- cli.py                  # official command-line entrypoint
-|   |-- ingestion.py            # source resolution and dataset fingerprinting
-|   |-- data_contract.py        # schema expectations for raw and curated data
-|   |-- quality.py              # data quality gates
-|   |-- transformations.py      # analytical normalization
-|   |-- metrics.py              # KPI, growth, YoY, Pareto logic
-|   |-- artifacts.py            # curated artifact materialization
-|   |-- batch_pipeline.py       # batch orchestration and run manifest
-|   |-- reporting.py            # executive output publishing
-|   |-- config.py               # environment-aware runtime and paths
-|   |-- logging_utils.py        # centralized logging
-|   `-- settings.py             # Streamlit runtime limits
-|-- tests/                      # regression, contract, CLI, and app tests
-|-- .env.example                # local runtime configuration template
-|-- app.py                      # root entrypoint for Streamlit
-|-- pyproject.toml              # packaging and tool configuration
-`-- README.md
+|   |-- ingestion.py               # source resolution and fingerprinting
+|   |-- data_contract.py           # raw/curated schema contracts
+|   |-- quality.py                 # quality validation and freshness checks
+|   |-- transformations.py         # analytical normalization
+|   |-- metrics.py                 # KPI, growth, YoY, Pareto calculations
+|   |-- artifacts.py               # curated artifact materialization
+|   |-- reporting.py               # report exports
+|   |-- batch_pipeline.py          # operational batch orchestration
+|   |-- cli.py                     # official CLI
+|   |-- config.py                  # runtime and path configuration
+|   |-- logging_utils.py           # centralized logging
+|   `-- data_dictionary.py         # contract-driven markdown generation
+|-- tests/                         # regression, contracts, CLI, app, and pipeline tests
+|-- .env.example                   # local runtime configuration template
+|-- Dockerfile                     # containerized execution path
+|-- Makefile                       # developer shortcuts
+|-- Taskfile.yml                   # optional task runner shortcuts
+|-- pyproject.toml                 # packaging and tool configuration
+|-- README.md
+`-- README.pt-BR.md
 ```
 
 Generated at runtime, not versioned by default:
 
-- `data/state/` for manifests and execution state
-- files inside `data/processed/` and `reports/` are overwritten by pipeline runs
+- `data/state/` for manifests and operational state
+- `data/processed/history/` for retained historical curated artifacts
+- `reports/history/` for retained historical analytical outputs
+
+## Execution model
+
+The repository exposes two official entrypoints:
+
+- `sales-analytics run-pipeline`
+  Runs the batch pipeline, writes curated artifacts, reports, manifests, and optional snapshots.
+- `streamlit run app.py`
+  Starts the presentation layer for interactive exploration using the same analytical core.
+
+Everything else is secondary. The batch pipeline is the source of truth.
 
 ## Data flow
 
-1. Resolve the input dataset from `data/raw` or the legacy fallback path.
+1. Resolve the input dataset from the configured raw path or legacy fallback.
 2. Compute a SHA-256 fingerprint for the source file.
-3. Validate schema and quality constraints before analysis.
+3. Validate required columns, invalid dates, invalid values, duplicates, negatives, zeros, and optional freshness thresholds.
 4. Normalize the analytical base.
-5. Compute KPI, period growth, YoY, and Pareto views.
+5. Compute KPI, period growth, YoY, and Pareto outputs.
 6. Materialize curated outputs:
    - `data/processed/fato_vendas.csv`
    - `data/processed/dim_tempo.csv`
    - `data/processed/dim_produtos.csv`
    - `data/processed/dim_clientes.csv`
-7. Persist operational metadata:
+7. Publish analytical and operational outputs:
    - `reports/executive_summary.csv`
+   - `reports/data_dictionary.md`
    - `reports/cleaned_sales.csv`
    - `reports/periodic_sales.csv`
    - `reports/yoy_sales.csv`
    - `reports/pareto_sales.csv`
+8. Persist execution state:
    - `data/state/pipeline_manifest.json`
    - `data/state/quality_report.json`
    - `data/state/kpis.json`
    - `data/state/latest_success.json`
-   - `data/state/latest_failure.json` when a run fails
-8. Optionally snapshot each execution under:
+   - `data/state/latest_failure.json`
+9. Optionally keep per-run snapshots under:
    - `data/processed/history/<run_id>/`
    - `reports/history/<run_id>/`
    - `data/state/runs/<run_id>/`
-9. Generate a contract-driven dictionary:
-   - `reports/data_dictionary.md`
 
-## Reliability choices
+## Reliability and operational guarantees
 
-- Idempotent writes: rerunning the batch pipeline rewrites deterministic targets instead of creating duplicate versions.
-- Atomic persistence: CSV and JSON outputs are written through temporary files and replaced only after success.
-- Reprocessability: the pipeline can be rerun from the same raw input with consistent artifact paths.
-- Traceability: each run records dataset fingerprint, runtime parameters, KPI snapshot, and quality summary.
-- Historical auditability: optional per-run snapshots preserve exactly what each execution produced.
-- Snapshot retention: historical runs can be pruned automatically with an environment-defined retention window.
-- Time-based retention: old snapshots can also be pruned by age, not only by run count.
-- Freshness checks: the pipeline can flag stale data against an environment-defined reference date and age threshold.
-- Backward compatibility: legacy input folders remain read-only fallbacks.
-
-## Stack
-
-- Python
-- Pandas
-- Streamlit
-- Plotly
-- Pytest
-- Ruff
-- Black
-- isort
-- Mypy
-- pre-commit
-- GitHub Actions
-
-## Running locally
-
-Install dependencies:
-
-```bash
-pip install -e ".[dev]"
-```
-
-Create a local environment file if needed by copying `.env.example` to `.env`.
-
-```bash
-# example
-# copy .env.example to .env
-```
-
-Run the full batch pipeline:
-
-```bash
-sales-analytics run-pipeline
-```
-
-Generate only the executive summary:
-
-```bash
-sales-analytics export-summary
-```
-
-Generate the contract-driven data dictionary:
-
-```bash
-sales-analytics generate-data-dictionary
-```
-
-Open the Streamlit application:
-
-```bash
-streamlit run app.py
-```
+- Idempotent execution: reruns overwrite the deterministic latest targets.
+- Atomic persistence: CSV and JSON files are written through temporary files before replacement.
+- Reprocessability: the same raw dataset can be rerun with the same logic and produce the same operational path.
+- Traceability: every run records a source fingerprint, configuration context, KPI snapshot, and quality snapshot.
+- Failure visibility: failed runs produce an explicit failure manifest.
+- Historical lineage: optional snapshots preserve point-in-time outputs by `run_id`.
+- Snapshot retention: history can be pruned by run count and by age.
+- Freshness control: staleness can be evaluated against an environment-defined reference date and threshold.
 
 ## Configuration
 
@@ -178,11 +154,48 @@ Runtime behavior is environment-driven. The main variables are:
 - `DATA_FRESHNESS_MAX_AGE_DAYS`
 - `DATA_FRESHNESS_REFERENCE_DATE`
 
-See `.env.example` for defaults.
+Use `.env.example` as the baseline configuration contract.
 
-## Quality controls
+## Local setup
 
-Run the local quality suite:
+Install the project and developer dependencies:
+
+```bash
+pip install -e ".[dev]"
+pre-commit install
+```
+
+Create a local `.env` if environment overrides are needed.
+
+## Official commands
+
+Run the full pipeline:
+
+```bash
+sales-analytics run-pipeline
+```
+
+Export only the executive summary:
+
+```bash
+sales-analytics export-summary
+```
+
+Generate the contract-driven data dictionary:
+
+```bash
+sales-analytics generate-data-dictionary
+```
+
+Start the dashboard:
+
+```bash
+streamlit run app.py
+```
+
+## Quality gates
+
+Run the local engineering gate:
 
 ```bash
 ruff check .
@@ -192,22 +205,9 @@ mypy src
 pytest
 ```
 
-`pre-commit` mirrors the same core checks for local guardrails, and GitHub Actions validates lint, typing, tests, and package build.
+The same gate is enforced in CI, together with package build validation and container smoke testing.
 
-## Technical decisions
-
-- Pandas was kept as the main engine because the dataset volume and portfolio scope do not justify Spark or distributed infrastructure.
-- The star-schema output is intentionally lightweight: enough to show modeling discipline without pretending to be a warehouse platform.
-- The repository keeps both batch and app entrypoints because that reflects a common analytics product pattern: one trusted data backbone, multiple consumers.
-- The data dictionary is generated from code-level contracts so documentation and implementation drift less over time.
-
-## Trade-offs
-
-- There is no external orchestrator, scheduler, or object storage integration. That would be disproportionate for this scope.
-- Retries are not implemented against remote systems because the pipeline currently reads local files only.
-- Data contracts are schema-level and sanity-level, not a full Great Expectations style framework.
-
-## Container
+## Container workflow
 
 Build the image:
 
@@ -215,7 +215,7 @@ Build the image:
 docker build -t sales-analytics-portfolio .
 ```
 
-Run the batch pipeline in a container:
+Run the batch pipeline in the container:
 
 ```bash
 docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/reports:/app/reports" sales-analytics-portfolio
@@ -227,15 +227,37 @@ Smoke test the CLI in the container:
 docker run --rm sales-analytics-portfolio sales-analytics summary
 ```
 
-Run the dashboard in a container:
+Run the dashboard in the container:
 
 ```bash
 docker run --rm -p 8501:8501 -v "$(pwd)/data:/app/data" -v "$(pwd)/reports:/app/reports" sales-analytics-portfolio streamlit run app.py --server.address 0.0.0.0
 ```
 
+## Design decisions
+
+- `pandas` remains the execution engine because the dataset and scope do not justify distributed compute.
+- Curated outputs follow a lightweight star-schema style because it demonstrates modeling discipline without pretending to be a warehouse platform.
+- The Streamlit layer consumes the same analytical logic as the batch pipeline to avoid rule duplication.
+- The data dictionary is generated from code-level contracts to reduce documentation drift.
+- Legacy paths are kept as read-only fallbacks to preserve compatibility without polluting the main runtime design.
+
+## Trade-offs
+
+- There is no external scheduler or orchestrator.
+- There is no object storage or remote state backend.
+- Retry logic is intentionally limited because the current system is local-file based.
+- Data contracts are strong enough for portfolio-grade discipline, but they are not a full data quality framework.
+
+## Contributing and review expectations
+
+- Contribution workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Architecture notes: [docs/architecture.md](docs/architecture.md)
+- Data dictionary: [docs/data_dictionary.md](docs/data_dictionary.md)
+
 ## Roadmap
 
-- Add partitioned outputs and historical snapshots for multi-run comparisons.
-- Introduce data freshness assertions and source-level SLAs.
-- Publish containerized execution and reproducible dev environments.
-- Add warehouse/dbt-style models for downstream semantic consumption.
+- Add richer freshness assertions and quality thresholds by dataset domain
+- Add more explicit semantic-layer style metrics contracts
+- Add operational metrics and alert-ready observability hooks
+- Add reproducible development environments for faster onboarding

@@ -1,20 +1,37 @@
 name: Bug report
-description: Report a reproducible defect
+description: Report a reproducible defect in the pipeline, CLI, contracts, or delivery layer
 title: "[BUG] "
 labels: ["bug"]
 body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Batch pipeline
+        - Data contracts / schema
+        - Reports / artifacts
+        - Streamlit app
+        - CI / automation
+        - Documentation
+    validations:
+      required: true
   - type: textarea
     id: summary
     attributes:
       label: Summary
-      description: What happened?
+      description: Describe the defect in one or two sentences.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-      description: Include minimal reproducible steps.
+      description: Provide the smallest reproducible sequence.
+      placeholder: |
+        1. Run ...
+        2. Use dataset ...
+        3. Observe ...
     validations:
       required: true
   - type: textarea
@@ -24,7 +41,18 @@ body:
     validations:
       required: true
   - type: textarea
-    id: logs
+    id: actual
     attributes:
-      label: Logs / evidence
-      description: Paste traceback, screenshots, or CI logs.
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, traceback, or evidence
+      description: Paste relevant manifest excerpts, CLI output, screenshots, or CI logs.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, OS, container/local, and any relevant environment overrides.
